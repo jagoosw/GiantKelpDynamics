@@ -200,7 +200,7 @@ end
 # Benchmarks a lot lot faster than mean or sum()/dk etc. and about same speed as _interpolate which is weird
 @inline function mean_squared_field(velocity, i::Int, j::Int, k1::Int, k2::Int)
     res = 0.0
-    @unroll for k in k1:k2
+    for k in k1:k2
         v = @inbounds velocity[i, j, k]
         res += v * abs(v)
     end
@@ -209,7 +209,7 @@ end
 
 @inline function mean_field(velocity, i::Int, j::Int, k1::Int, k2::Int)
     res = 0.0
-    @unroll for k in k1:k2
+    for k in k1:k2
         res += @inbounds velocity[i, j, k]
     end
     return res / (k2 - k1 + 1)

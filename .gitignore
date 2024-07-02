@@ -418,3 +418,5 @@ $RECYCLE.BIN/
 *.jld2
 *.png
 *.mp4
+
+docs/src/generated/*

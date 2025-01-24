@@ -22,6 +22,8 @@ using Oceananigans.Biogeochemistry: AbstractContinuousFormBiogeochemistry
 using Oceananigans.Fields: Field, CenterField, VelocityFields
 using Oceananigans.Operators: volume
 
+using OceanBioME.Particles: AbstractBiogeochemicalParticles
+
 import Adapt: adapt_structure
 import Base: size, length, show, summary
 import Oceananigans: set!
@@ -29,7 +31,7 @@ import Oceananigans.Biogeochemistry: update_tendencies!
 import Oceananigans.Models.LagrangianParticleTracking: update_lagrangian_particle_properties!, _advect_particles!
 import Oceananigans.OutputWriters: fetch_output, convert_output
 
-struct GiantKelp{FT, VF, VI, SF, KP, TS, DT, TF, CD} <: BiogeochemicalParticles
+struct GiantKelp{FT, VF, VI, SF, KP, TS, DT, TF, CD} <: AbstractBiogeochemicalParticles
     # origin position
      holdfast_x :: FT
      holdfast_y :: FT

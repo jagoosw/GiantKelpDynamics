@@ -401,8 +401,6 @@ summary(::NothingBGC) = string("No biogeochemistry")
 show(io, ::NothingBGC) = print(io, string("No biogeochemistry"))
 show(::NothingBGC) = string("No biogeochemistry") # show be removed when show for `Biogeochemistry` is corrected
 
-include("atomic_operations.jl")
-
 include("timesteppers.jl")
 include("kinematics/Kinematics.jl")
 include("drag_coupling.jl")

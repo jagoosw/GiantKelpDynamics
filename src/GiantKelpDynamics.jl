@@ -15,7 +15,7 @@ using KernelAbstractions: @kernel, @index, synchronize
 using Oceananigans: CPU
 
 using KernelAbstractions.Extras: @unroll
-using OceanBioME.Particles: BiogeochemicalParticles
+using OceanBioME.Particles: BiogeochemicalParticles, atomic_add!
 using Oceananigans: Center
 using Oceananigans.Architectures: architecture, device, on_architecture
 using Oceananigans.Biogeochemistry: AbstractContinuousFormBiogeochemistry

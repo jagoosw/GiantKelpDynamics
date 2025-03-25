@@ -92,11 +92,12 @@ end
     mᵉ = (Vᵐ + Cᵃ * (Vᵐ + Vᵖ)) * ρₒ + Vᵖ * (ρₒ - 500) 
 
     # we need ijk and this also reduces repetition of finding ijk
-    ii, jj, kk = fractional_indices((X, Y, Z), grid, Center(), Center(), Center())
+    ℓx, ℓy, ℓz = Center(), Center(), Center()
+    fidx = _fractional_indices(collapse_position(X, Y, Z, ℓx, ℓy, ℓz), grid, ℓx, ℓy, ℓz)
 
-    ix = interpolator(ii)
-    iy = interpolator(jj)
-    iz = interpolator(kk)
+    ix = interpolator(fidx.i)
+    iy = interpolator(fidx.j)
+    iz = interpolator(fidx.k)
 
     i, j, k = (get_node(TX(), Int(ifelse(ix[3] < 0.5, ix[1], ix[2])), grid.Nx),
                get_node(TY(), Int(ifelse(iy[3] < 0.5, iy[1], iy[2])), grid.Ny),
@@ -106,9 +107,9 @@ end
     positions_ijk[p, n, 2] = j
     positions_ijk[p, n, 3] = k
 
-    _, _, kk⁻ = fractional_indices((x⁻ + x_holdfast[p], y⁻ + y_holdfast[p], z⁻ + y_holdfast[p]), grid, Center(), Center(), Center())
+    fidx2 = _fractional_indices(collapse_position(x⁻ + x_holdfast[p], y⁻ + y_holdfast[p], z⁻ + y_holdfast[p], ℓx, ℓy, ℓz), grid, ℓx, ℓy, ℓz)
 
-    iz⁻ = interpolator(kk⁻)
+    iz⁻ = interpolator(fidx2.k)
 
     k⁻ = get_node(TZ(), Int(ifelse(iz[3] < 0.5, iz⁻[1], iz⁻[2])), grid.Nz)
 

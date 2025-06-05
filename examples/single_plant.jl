@@ -55,8 +55,8 @@ simulation.callbacks[:progress] = Callback(prog, IterationInterval(100))
 wizard = TimeStepWizard(cfl = 0.5)
 simulation.callbacks[:timestep] = Callback(wizard, IterationInterval(10))
 
-simulation.output_writers[:flow] = JLD2OutputWriter(model, model.velocities, overwrite_existing = true, filename = "single_flow.jld2", schedule = TimeInterval(10))
-simulation.output_writers[:kelp] = JLD2OutputWriter(model, (; positions = kelp.positions), overwrite_existing = true, filename = "single_kelp.jld2", schedule = TimeInterval(10))
+simulation.output_writers[:flow] = JLD2Writer(model, model.velocities, overwrite_existing = true, filename = "single_flow.jld2", schedule = TimeInterval(10))
+simulation.output_writers[:kelp] = JLD2Writer(model, (; positions = kelp.positions), overwrite_existing = true, filename = "single_kelp.jld2", schedule = TimeInterval(10))
 
 # Run!
 

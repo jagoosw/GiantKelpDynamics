@@ -16,7 +16,6 @@ OceanBioME = "a49af516-9db8-4be4-be45-1dad61c5a376"
 Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 Oceanostics = "d0ccf422-c8fb-49b5-a76d-74acdde946ac"
 OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
-Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [compat]
 Adapt = "4.0.4"
@@ -29,7 +28,6 @@ OceanBioME = "0.14"
 Oceananigans = "0.95.8, 0.96"
 Oceanostics = "0.15.1"
 OffsetArrays = "1.14.1"
-Printf = "1.11.0"
 
 [extras]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"

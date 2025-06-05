@@ -9,18 +9,20 @@ module GiantKelpDynamics
 
 export GiantKelp, NothingBGC, RK3, Euler, UtterDenny
 
-using Adapt, Atomix, CUDA
+using Adapt, CUDA
 
 using KernelAbstractions: @kernel, @index, synchronize
 using Oceananigans: CPU
 
 using KernelAbstractions.Extras: @unroll
-using OceanBioME.Particles: BiogeochemicalParticles
+using OceanBioME.Particles: BiogeochemicalParticles, atomic_add!
 using Oceananigans: Center
 using Oceananigans.Architectures: architecture, device, on_architecture
 using Oceananigans.Biogeochemistry: AbstractContinuousFormBiogeochemistry
 using Oceananigans.Fields: Field, CenterField, VelocityFields
 using Oceananigans.Operators: volume
+
+using OceanBioME.Particles: AbstractBiogeochemicalParticles
 
 import Adapt: adapt_structure
 import Base: size, length, show, summary
@@ -29,7 +31,7 @@ import Oceananigans.Biogeochemistry: update_tendencies!
 import Oceananigans.Models.LagrangianParticleTracking: update_lagrangian_particle_properties!, _advect_particles!
 import Oceananigans.OutputWriters: fetch_output, convert_output
 
-struct GiantKelp{FT, VF, VI, SF, KP, TS, DT, TF, CD} <: BiogeochemicalParticles
+struct GiantKelp{FT, VF, VI, SF, KP, TS, DT, TF, CD} <: AbstractBiogeochemicalParticles
     # origin position
      holdfast_x :: FT
      holdfast_y :: FT
@@ -398,8 +400,6 @@ struct NothingBGC <: AbstractContinuousFormBiogeochemistry end
 summary(::NothingBGC) = string("No biogeochemistry")
 show(io, ::NothingBGC) = print(io, string("No biogeochemistry"))
 show(::NothingBGC) = string("No biogeochemistry") # show be removed when show for `Biogeochemistry` is corrected
-
-include("atomic_operations.jl")
 
 include("timesteppers.jl")
 include("kinematics/Kinematics.jl")

@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.3"
+julia_version = "1.11.5"
 manifest_format = "2.0"
 project_hash = "6e1bb34493343c37de9195438c0fdb02d8be67e4"
 
@@ -1226,11 +1226,9 @@ version = "0.5.5"
 
 [[deps.OceanBioME]]
 deps = ["Adapt", "Atomix", "CUDA", "GibbsSeaWater", "JLD2", "KernelAbstractions", "Oceananigans", "OffsetArrays", "Roots", "SeawaterPolynomials"]
-git-tree-sha1 = "6af3a41d35823c81274dccba522f5c467a825fcb"
-repo-rev = "jsw/refactor-sediment"
-repo-url = "https://github.com/OceanBioME/OceanBioME.jl.git"
+git-tree-sha1 = "cc5ad47b3e956156477f043f962b4c05d0c56ead"
 uuid = "a49af516-9db8-4be4-be45-1dad61c5a376"
-version = "0.14.0"
+version = "0.14.1"
 
 [[deps.Oceananigans]]
 deps = ["Adapt", "CUDA", "Crayons", "CubedSphere", "Dates", "Distances", "DocStringExtensions", "FFTW", "GPUArrays", "Glob", "IncompleteLU", "InteractiveUtils", "IterativeSolvers", "JLD2", "KernelAbstractions", "LinearAlgebra", "Logging", "MPI", "NCDatasets", "OffsetArrays", "OrderedCollections", "Pkg", "Printf", "Random", "Rotations", "SeawaterPolynomials", "SparseArrays", "StaticArrays", "Statistics", "StructArrays", "TimesDates"]
@@ -1293,7 +1291,7 @@ version = "3.2.4+0"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.5+0"
 
 [[deps.OpenMPI_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML", "Zlib_jll"]

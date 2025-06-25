@@ -196,24 +196,3 @@ end
     drag_forces[p, n, 2] = Fᴰ₂
     drag_forces[p, n, 3] = Fᴰ₃
 end
-
-# This is only valid on a regularly spaced grid
-# Benchmarks a lot lot faster than mean or sum()/dk etc. and about same speed as _interpolate which is weird
-@inline function mean_squared_field(velocity, i::Int, j::Int, k1::Int, k2::Int)
-    res = 0.0
-    for k in k1:k2
-        v = @inbounds velocity[i, j, k]
-        res += v * abs(v)
-    end
-    return sign(res) * sqrt(abs(res)) / (k2 - k1 + 1)
-end
-
-@inline function mean_field(velocity, i::Int, j::Int, k1::Int, k2::Int)
-    res = 0.0
-    for k in k1:k2
-        res += @inbounds velocity[i, j, k]
-    end
-    return res / (k2 - k1 + 1)
-end
-
-@inline tension(Δx, l₀, Aᶜ, k, α) = ifelse(Δx > l₀ && !(Δx == 0.0), k * (max(0, (Δx - l₀)) / l₀) ^ α * Aᶜ, 0.0)

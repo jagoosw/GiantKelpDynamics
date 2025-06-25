@@ -16,10 +16,11 @@ using Oceananigans: CPU
 
 using KernelAbstractions.Extras: @unroll
 using OceanBioME.Particles: BiogeochemicalParticles, atomic_add!
-using Oceananigans: Center
+using Oceananigans: Center, Face
 using Oceananigans.Architectures: architecture, device, on_architecture
 using Oceananigans.Biogeochemistry: AbstractContinuousFormBiogeochemistry
 using Oceananigans.Fields: Field, CenterField, VelocityFields
+using Oceananigans.Grids: znodes
 using Oceananigans.Operators: volume
 
 using OceanBioME.Particles: AbstractBiogeochemicalParticles
@@ -31,28 +32,23 @@ import Oceananigans.Biogeochemistry: update_tendencies!
 import Oceananigans.Models.LagrangianParticleTracking: update_lagrangian_particle_properties!, _advect_particles!
 import Oceananigans.OutputWriters: fetch_output, convert_output
 
-struct GiantKelp{FT, VF, VI, SF, KP, TS, DT, TF, CD} <: AbstractBiogeochemicalParticles
-    # origin position
-     holdfast_x :: FT
-     holdfast_y :: FT
-     holdfast_z :: FT
-
-    scalefactor :: FT
+struct GiantKelp{FT, VT, MT, TM, KP, TS, DT, TF, CD} <: AbstractBiogeochemicalParticles
+    scalefactor :: VT
 
     #information about nodes
-               positions :: VF
-           positions_ijk :: VI
-              velocities :: VF 
-         relaxed_lengths :: SF
-             stipe_radii :: SF 
-             blade_areas :: SF
-    pneumatocyst_volumes :: SF 
+               positions :: TM
+              velocities :: TM 
+         relaxed_lengths :: MT
+             blade_areas :: MT
 
     # forces on nodes and force history
-        accelerations :: VF
-       old_velocities :: VF
-    old_accelerations :: VF
-          drag_forces :: VF
+        accelerations :: TM
+       old_velocities :: TM
+    old_accelerations :: TM
+          drag_forces :: TM
+
+          stipe_radii :: FT
+pneumatocyst_buoyancy :: FT
 
     kinematics :: KP
 
@@ -62,38 +58,34 @@ struct GiantKelp{FT, VF, VI, SF, KP, TS, DT, TF, CD} <: AbstractBiogeochemicalPa
      tracer_forcing :: TF
     custom_dynamics :: CD
 
-    function GiantKelp(holdfast_x::FT, holdfast_y::FT, holdfast_z::FT,
-                       scalefactor::FT,
-                       positions::VF,
-                       positions_ijk::VI,
-                       velocities::VF,
-                       relaxed_lengths::SF,
-                       stipe_radii::SF,
-                       blade_areas::SF,
-                       pneumatocyst_volumes::SF,
-                       accelerations::VF,
-                       old_velocities::VF,
-                       old_accelerations::VF,
-                       drag_forces::VF,
+    function GiantKelp(scalefactor::VT,
+                       positions::TM,
+                       velocities::TM,
+                       relaxed_lengths::MT,
+                       blade_areas::MT,
+                       accelerations::TM,
+                       old_velocities::TM,
+                       old_accelerations::TM,
+                       drag_forces::TM,
+                       stipe_radii::FT,
+                       pneumatocyst_buoyancy::FT,
                        kinematics::KP,
                        timestepper::TS,
                        max_Δt::DT,
                        tracer_forcing::TF,
-                       custom_dynamics::CD) where {FT, VF, VI, SF, KP, TS, DT, TF, CD}
+                       custom_dynamics::CD) where {FT, VT, MT, TM, KP, TS, DT, TF, CD}
 
-        return new{FT, VF, VI, SF, KP, TS, DT, TF, CD}(holdfast_x, holdfast_y, holdfast_z,
-                                                       scalefactor,
+        return new{FT, VT, MT, TM, KP, TS, DT, TF, CD}(scalefactor,
                                                        positions,
-                                                       positions_ijk,
                                                        velocities,
                                                        relaxed_lengths,
-                                                       stipe_radii,
                                                        blade_areas,
-                                                       pneumatocyst_volumes,
                                                        accelerations,
                                                        old_velocities,
                                                        old_accelerations,
                                                        drag_forces,
+                                                       stipe_radii,
+                                                       pneumatocyst_buoyancy,
                                                        kinematics,
                                                        timestepper,
                                                        max_Δt,
@@ -102,13 +94,17 @@ struct GiantKelp{FT, VF, VI, SF, KP, TS, DT, TF, CD} <: AbstractBiogeochemicalPa
     end
 end
 
+include("timesteppers.jl")
+include("kinematics/Kinematics.jl")
+include("drag_coupling.jl")
+
 function segment_area_fraction(lengths)
     fractional_length = cumsum(lengths) ./ sum(lengths)
 
     # Jackson et al. 1985 (https://www.jstor.org/stable/24817427)
     cumulative_areas = -0.08 .+ 3.3 .* fractional_length .- 4.1 .* fractional_length .^ 2 .+ 1.9 .* fractional_length .^ 3
 
-    return cumulative_areas .- [0.0, cumulative_areas[1:end-1]...]
+    return reverse(cumulative_areas .- [0.0, cumulative_areas[1:end-1]...])
 end
 
 """
@@ -179,20 +175,18 @@ Giant kelp (Macrocystis pyrifera) model with 2 individuals of 8 nodes.
 ```
 """
 function GiantKelp(; grid, 
-                     holdfast_x, holdfast_y, holdfast_z,
+                     holdfast_x, holdfast_y,
                      scalefactor = ones(length(holdfast_x)),
                      number_nodes = 8,
                      segment_unstretched_length = 3.,
-                     initial_stipe_radii = 0.004,
-                     initial_blade_areas = 3.0 * (isa(segment_unstretched_length, Number) ? 
+                     stipe_radii = 0.004,
+                     initial_blade_areas = sum(segment_unstretched_length)^0.995*0.297 * (isa(segment_unstretched_length, Number) ? 
                                                     ones(number_nodes) ./ number_nodes :
                                                     segment_area_fraction(segment_unstretched_length)),
-                     initial_pneumatocyst_volume = (2.5 / (5 * 9.81)) .* (isa(segment_unstretched_length, Number) ?
-                                                                            1 / number_nodes .* ones(number_nodes) :
-                                                                            segment_unstretched_length ./ sum(segment_unstretched_length)),
-                     kinematics = UtterDenny(),
+                     pneumatocyst_buoyancy = 2.5, #kg m/s²
+                     kinematics = UtterDennySpeed(),
                      timestepper = Euler(),
-                     max_Δt = 1.,
+                     max_Δt = nothing,
                      tracer_forcing = NamedTuple(),
                      custom_dynamics = nothingfunc)
 
@@ -200,44 +194,43 @@ function GiantKelp(; grid,
 
     arch = architecture(grid)
 
-    holdfast_x = on_architecture(arch, holdfast_x)
-    holdfast_y = on_architecture(arch, holdfast_y)
-    holdfast_z = on_architecture(arch, holdfast_z)
     scalefactor = on_architecture(arch, scalefactor)
-
     
-    velocities = on_architecture(arch, zeros(number_kelp, number_nodes, 3))
-    positions = on_architecture(arch, zeros(number_kelp, number_nodes, 3))
+    positions = threeD_array(number_kelp, number_nodes+1, arch; z0 = znodes(grid, Center(), Center(), Face())[1])
 
-    positions_ijk = on_architecture(arch, ones(Int, number_kelp, number_nodes, 3))
+    CUDA.@allowscalar begin
+        positions.x .= holdfast_x
+        positions.y .= holdfast_y
+    end
 
+    velocities = threeD_array(number_kelp, number_nodes+1, arch)
 
     relaxed_lengths = on_architecture(arch, ones(number_kelp, number_nodes))
-    stipe_radii = on_architecture(arch, ones(number_kelp, number_nodes))
     blade_areas = on_architecture(arch, ones(number_kelp, number_nodes))
-    pneumatocyst_volumes = on_architecture(arch, ones(number_kelp, number_nodes))
 
     set!(relaxed_lengths, segment_unstretched_length)
-    set!(stipe_radii, initial_stipe_radii)
     set!(blade_areas, initial_blade_areas)
-    set!(pneumatocyst_volumes, initial_pneumatocyst_volume)
 
-    accelerations = on_architecture(arch, zeros(number_kelp, number_nodes, 3))
-    old_velocities = on_architecture(arch, zeros(number_kelp, number_nodes, 3))
-    old_accelerations = on_architecture(arch, zeros(number_kelp, number_nodes, 3))
-    drag_forces = on_architecture(arch, zeros(number_kelp, number_nodes, 3))
+    accelerations = threeD_array(number_kelp, number_nodes+1, arch)
+    old_velocities = threeD_array(number_kelp, number_nodes+1, arch)
+    old_accelerations = threeD_array(number_kelp, number_nodes+1, arch)
+    drag_forces = threeD_array(number_kelp, number_nodes+1, arch)
 
-    return GiantKelp(holdfast_x, holdfast_y, holdfast_z,
-                     scalefactor,
-                     positions, positions_ijk,
+    if isnothing(max_Δt)
+        max_Δt = on_architecture(arch, ones(number_kelp) * 0.001)
+    end
+
+    return GiantKelp(scalefactor,
+                     positions,
                      velocities,
                      relaxed_lengths,
-                     stipe_radii,
                      blade_areas,
-                     pneumatocyst_volumes,
                      accelerations,
-                     old_velocities, old_accelerations,
+                     old_velocities, 
+                     old_accelerations,
                      drag_forces,
+                     stipe_radii,
+                     pneumatocyst_buoyancy,
                      kinematics,
                      timestepper,
                      max_Δt,
@@ -245,165 +238,39 @@ function GiantKelp(; grid,
                      custom_dynamics)
 end
 
-adapt_structure(to, kelp::GiantKelp) = GiantKelp(adapt(to, kelp.holdfast_x),
-                                                 adapt(to, kelp.holdfast_y), 
-                                                 adapt(to, kelp.holdfast_z),
-                                                 adapt(to, kelp.scalefactor),
+threeD_array(d1, d2, arch; x0 = 0, y0 = 0, z0 = 0) = 
+    (x = on_architecture(arch, ones(d1, d2) * x0),
+     y = on_architecture(arch, ones(d1, d2) * y0),
+     z = on_architecture(arch, ones(d1, d2) * z0))
+
+adapt_structure(to, kelp::GiantKelp) = GiantKelp(adapt(to, kelp.scalefactor),
                                                  adapt(to, kelp.positions),
-                                                 adapt(to, kelp.positions_ijk),
                                                  adapt(to, kelp.velocities),
                                                  adapt(to, kelp.relaxed_lengths),
-                                                 adapt(to, kelp.stipe_radii),
                                                  adapt(to, kelp.blade_areas),
-                                                 adapt(to, kelp.pneumatocyst_volumes),
                                                  adapt(to, kelp.accelerations),
                                                  adapt(to, kelp.old_velocities),
                                                  adapt(to, kelp.old_accelerations),
                                                  adapt(to, kelp.drag_forces),
+                                                 stipe_radii,
+                                                 pneumatocyst_buoyancy,
                                                  adapt(to, kelp.kinematics),
                                                  nothing,
                                                  adapt(to, kelp.max_Δt),
                                                  nothing,
                                                  nothing)
 
-size(particles::GiantKelp) = size(particles.holdfast_x)
-length(particles::GiantKelp) = length(particles.holdfast_x)
+size(particles::GiantKelp) = size(particles.positions.x)
+length(particles::GiantKelp) = length(particles.scalefactor)
 
-size(particles::GiantKelp, dim::Int) = size(particles.positions, dim)
+size(particles::GiantKelp, dim::Int) = size(particles.positions.x, dim)
 
-summary(particles::GiantKelp) = string("Giant kelp (Macrocystis pyrifera) model with $(length(particles)) individuals of $(size(particles.positions, 2)) nodes.")
+summary(particles::GiantKelp) = string("Giant kelp (Macrocystis pyrifera) model with $(length(particles)) individuals of $(size(particles.positions.x, 2) - 1) nodes.")
 show(io::IO, particles::GiantKelp) = print(io, string(summary(particles), " \n",
                                                       " Base positions:\n", 
-                                                      " - x ∈ [$(minimum(particles.holdfast_x)), $(maximum(particles.holdfast_x))]\n",
-                                                      " - y ∈ [$(minimum(particles.holdfast_y)), $(maximum(particles.holdfast_y))]\n",
-                                                      " - z ∈ [$(minimum(particles.holdfast_z)), $(maximum(particles.holdfast_z))]"))
-
-"""
-    set!(kelp::GiantKelp; kwargs...)
-
-Sets the properties of the `kelp` model. The keyword arguments kwargs... take the form name=data, where name refers to one of the properties of
-`kelp`, and the data may be an array mathcing the size of the property for one individual (i.e. size(kelp.name[1])), or for all (i.e. size(kelp.name)).
-
-Example
-=======
-
-```jldoctest
-julia> using GiantKelpDynamics, Oceananigans
-
-julia> grid = RectilinearGrid(size=(16, 16, 16), extent=(100, 100, 8));
-
-julia> kelp = GiantKelp(; grid, number_nodes = 2, holdfast_x = [10., 20.], holdfast_y = [10., 20], holdfast_z = [-8., -8.])
-Giant kelp (Macrocystis pyrifera) model with 2 individuals of 2 nodes. 
- Base positions:
- - x ∈ [10.0, 20.0]
- - y ∈ [10.0, 20.0]
- - z ∈ [-8.0, -8.0]
-
-julia> set!(kelp, positions = [0 0 8; 8 0 8])
-
-julia> initial_positions = zeros(2, 2, 3);
-
-julia> initial_positions[1, :, :] = [0 0 8; 8 0 8];
-
-julia> initial_positions[1, :, :] = [0 0 -8; 8 0 -8];
-
-julia> set!(kelp, positions = initial_positions)
-
-```
-"""
-function set!(kelp::GiantKelp; kwargs...)
-    for (fldname, value) in kwargs
-        ϕ = getproperty(kelp, fldname)
-        set!(ϕ, value)
-    end
-end
-
-const NotAField = Union{Array, CuArray}
-
-set!(ϕ::NotAField, value::Number) = ϕ .= value
-set!(ϕ::A, value::A) where A = ϕ.= value
-
-function set!(ϕ, value)
-    if length(size(value)) == 1
-        set_1d!(ϕ, value)
-    elseif length(size(value)) == 2
-        set_2d!(ϕ, value)
-    elseif size(value) == size(ϕ)
-        set!(ϕ, on_architecture(architecture(ϕ), value))
-    else
-        error("Failed to set property with size $(size(ϕ)) to values with size $(size(value))")
-    end
-end
-
-function set_1d!(ϕ, value)
-    for n in eachindex(value)
-        ϕ[:, n] .= value[n]
-    end
-end
-
-function set_2d!(ϕ, value)
-    for n in 1:size(value, 1), d in 1:size(value, 2)
-        ϕ[:, n, d] .= value[n, d]
-    end
-end
-
-
-# for output writer
-
-const PropertyArray = Union{Array, CuArray}
-
-fetch_output(output::Array, model) = output
-
-fetch_output(output::CuArray, model) = on_architecture(CPU(), output)
-
-convert_output(output::Array, writer) = output
-
-function convert_output(output::CuArray, writer)
-    output_array = writer.array_type(undef, size(output)...)
-    copyto!(output_array, output)
-
-    return output_array
-end
-
-"""
-    NothingBGC()
-
-An Oceananigans `AbstractContinuousFormBiogeochemistry` which specifies no biogeochemical
-interactions to allow the giant kelp model to be run alone.
-
-Example
-=======
-
-```jldoctest
-julia> using GiantKelpDynamics, Oceananigans, OceanBioME
-
-julia> grid = RectilinearGrid(size=(16, 16, 16), extent=(100, 100, 8));
-
-julia> kelp = GiantKelp(; grid, number_nodes = 2, holdfast_x = [10., 20.], holdfast_y = [10., 20], holdfast_z = [-8., -8.])
-Giant kelp (Macrocystis pyrifera) model with 2 individuals of 2 nodes. 
- Base positions:
- - x ∈ [10.0, 20.0]
- - y ∈ [10.0, 20.0]
- - z ∈ [-8.0, -8.0]
-
-julia> biogeochemistry = Biogeochemistry(NothingBGC(); particles = kelp)
-No biogeochemistry 
- Light attenuation: Nothing
- Sediment: Nothing
- Particles: Giant kelp (Macrocystis pyrifera) model with 2 individuals of 2 nodes.
- Modifiers: Nothing
-
-```
-"""
-struct NothingBGC <: AbstractContinuousFormBiogeochemistry end
-
-summary(::NothingBGC) = string("No biogeochemistry")
-show(io, ::NothingBGC) = print(io, string("No biogeochemistry"))
-show(::NothingBGC) = string("No biogeochemistry") # show be removed when show for `Biogeochemistry` is corrected
-
-include("timesteppers.jl")
-include("kinematics/Kinematics.jl")
-include("drag_coupling.jl")
+                                                      " - x ∈ [$(minimum(particles.positions.x)), $(maximum(particles.positions.x))]\n",
+                                                      " - y ∈ [$(minimum(particles.positions.y)), $(maximum(particles.positions.y))]\n",
+                                                      " - z ∈ [$(minimum(particles.positions.z)), $(maximum(particles.positions.z))]"))
 
 function update_tendencies!(bgc, particles::GiantKelp, model)
     Gᵘ, Gᵛ, Gʷ = @inbounds model.timestepper.Gⁿ[(:u, :v, :w)]
@@ -427,45 +294,64 @@ end
 @kernel function _update_tendencies!(particles, Gᵘ, Gᵛ, Gʷ, tracer_tendencies, grid, tracers, tracer_forcings)
     p = @index(Global)
 
-    k_base = 0
-
     sf = particles.scalefactor[p]
+    positions = particles.positions
 
-    n_nodes = size(particles.positions_ijk, 2)
+    x⃗₀ = @inbounds (x = positions.x[p, 1], y = positions.y[p, 1], z = positions.z[p, 1])
+    x⃗₁ = @inbounds (x = positions.x[p, 2], y = positions.y[p, 2], z = positions.z[p, 2])
+    x⃗₂ = @inbounds (x = positions.x[p, 3], y = positions.y[p, 3], z = positions.z[p, 3])
 
-    for n in 1:n_nodes
-        k_base += 1
+    i₀, j₀, k₀ = get_closest_ijk(grid, x⃗₀)
+    i₁, j₁, k₁ = get_closest_ijk(grid, x⃗₁)
+    i₂, j₂, k₂ = get_closest_ijk(grid, x⃗₂)
 
-        i = particles.positions_ijk[p, n, 1]
-        j = particles.positions_ijk[p, n, 2]
-        k_top = particles.positions_ijk[p, n, 3]
+    k1₁ = min(k₀, k₁)
+    k2₁ = max(k₀, k₁)
 
-        total_volume = 0
+    k1₂ = min(k₁, k₂)
+    k2₂ = max(k₁, k₂)
 
-        k1 = min(k_base, k_top)
-        k2 = max(k_base, k_top)
+    vol1 = total_volume(grid, i₁, j₁, Val(k1₁), Val(k2₁))
+    vol2 = total_volume(grid, i₂, j₂, Val(k1₂), Val(k2₂))
 
-        for k in k1:k2
-            total_volume += volume(i, j, k, grid, Center(), Center(), Center())
-        end
+    # first node
+    for k in k1₁:k2₁
+        scaling = sf / vol1 /  particles.kinematics.water_density
 
-        total_mass = total_volume * particles.kinematics.water_density
+        @inbounds atomic_add!(Gᵘ, i₁, j₁, k, - particles.drag_forces.x[p, 2] * scaling)
+        @inbounds atomic_add!(Gᵛ, i₁, j₁, k, - particles.drag_forces.y[p, 2] * scaling)
+        @inbounds atomic_add!(Gʷ, i₁, j₁, k, - particles.drag_forces.z[p, 2] * scaling)
 
-        apply_drag!(particles, Gᵘ, Gᵛ, Gʷ, i, j, k_top, k_base, total_mass, p, n)
-
-        # maybe optimal to invert the order of these loops
         for (tracer_idx, forcing) in enumerate(tracer_forcings)
-            tracer_tendency = tracer_tendencies[tracer_idx]
+            tracer_tendency = @inbounds tracer_tendencies[tracer_idx]
 
-            # if we change func to just p, n dependencies we can just calculate it once
-            for k in k1:k2
-                total_scaling = sf / total_volume * volume(i, j, k, grid, Center(), Center(), Center())
-                atomic_add!(tracer_tendency, i, j, k, total_scaling * forcing.func(i, j, k, p, n, grid, clock, particles, tracers, forcing.parameters))
-            end
+            total_scaling = sf / vol1 * volume(i₁, j₁, k, grid, Center(), Center(), Center())
+            atomic_add!(tracer_tendency, i₁, j₁, k, total_scaling * forcing.func(i₁, j₁, k, p, 1, grid, clock, particles, tracers, forcing.parameters))
         end
+    end
 
-        k_base = k_top
+    # second node
+    for k in k1₂:k2₂
+        scaling = sf / vol2 /  particles.kinematics.water_density
+
+        @inbounds atomic_add!(Gᵘ, i₂, j₂, k, - particles.drag_forces.x[p, 3] * scaling)
+        @inbounds atomic_add!(Gᵛ, i₂, j₂, k, - particles.drag_forces.y[p, 3] * scaling)
+        @inbounds atomic_add!(Gʷ, i₂, j₂, k, - particles.drag_forces.z[p, 3] * scaling)
+
+        for (tracer_idx, forcing) in enumerate(tracer_forcings)
+            tracer_tendency = @inbounds tracer_tendencies[tracer_idx]
+
+            total_scaling = sf / vol2 * volume(i₂, j₂, k, grid, Center(), Center(), Center())
+            atomic_add!(tracer_tendency, i₂, j₂, k, total_scaling * forcing.func(i₂, j₂, k, p, 2, grid, clock, particles, tracers, forcing.parameters))
+        end
     end
 end
+
+@inline total_volume(grid, i, j, ::Val{k1}, ::Val{k2}) where {k1, k2} = sum(
+    ntuple(k0 -> volume(i, j, k0 + k1 - 1, grid, Center(), Center(), Center()), 
+           Val(k2 - k1 + 1))
+)
+
+include("utils.jl")
 
 end # module GiantKelpDynamics

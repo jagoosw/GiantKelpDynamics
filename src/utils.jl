@@ -48,7 +48,8 @@ end
 const NotAField = Union{Array, CuArray}
 
 set!(ϕ::NotAField, value::Number) = ϕ .= value
-set!(ϕ::AbstractArray{FT1, N}, value::AbstractArray{FT2, N}) where {FT1, FT2, N} = ϕ.= value
+set!(ϕ::AbstractArray{FT1, 1}, value::AbstractArray{FT2, 1}) where {FT1, FT2} = ϕ.= value
+set!(ϕ::AbstractArray{FT1, 2}, value::AbstractArray{FT2, 2}) where {FT1, FT2} = ϕ.= value
 
 function set!(ϕ, value)
     if length(size(value)) == 1

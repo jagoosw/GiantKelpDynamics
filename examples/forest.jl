@@ -17,14 +17,14 @@ grid = RectilinearGrid(size = (128, 64, 8), extent = (1kilometer, 500, 8))
 
 xc, yc, zc = nodes(grid, Center(), Center(), Center())
 
-x_spacing = xc[27]:xspacings(grid, Center()):xc[38]
-y_spacing = yc[27]:yspacings(grid, Center()):yc[38]
+x_spacing = xc[27]:xspacings(grid, Center())[1]:xc[38]
+y_spacing = yc[27]:yspacings(grid, Center())[1]:yc[38]
 
 holdfast_x = vec([x for x in x_spacing, y in y_spacing])
 holdfast_y = vec([y for x in x_spacing, y in y_spacing])
 holdfast_z = vec([-8. for x in x_spacing, y in y_spacing])
 
-scalefactor = 1.5 * (xspacings(grid, Center()) * yspacings(grid, Center())) .* ones(length(holdfast_x))
+scalefactor = 1.5 * (xspacings(grid, Center())[1] * yspacings(grid, Center()))[1] .* ones(length(holdfast_x))
 
 scalefactor = vec([x for x in x_spacing, y in y_spacing])
 
@@ -32,13 +32,9 @@ number_nodes = 2
 
 segment_unstretched_length = [16., 8.]
 
-max_Δt = 1.
-
 kelp = GiantKelp(; grid,
-                   holdfast_x, holdfast_y, holdfast_z,
-                   scalefactor, number_nodes, segment_unstretched_length,
-                   max_Δt,
-                   initial_blade_areas = 3 .* [0.2, 0.8])
+                   holdfast_x, holdfast_y,
+                   scalefactor, number_nodes, segment_unstretched_length)
 
 @inline sponge(x, y, z) = ifelse(x < 100, 1, 0)
 
@@ -52,9 +48,6 @@ model = NonhydrostaticModel(; grid,
                               advection = WENO(),
                               forcing = (; u, v, w),
                               closure = AnisotropicMinimumDissipation())
-
-# Set the initial positions of the plant nodes (relaxed floating to the surface)
-set!(kelp, positions = [0. 0. 8.; 8. 0. 8.])#[13.86 0. 8.; 21.86 0. 8.;])
 
 # Sset an initial water velocity with random noise to initial conditions to induce turbulance
 u₀(x, y, z) = 0.05 * (1 + 0.001 * randn())
@@ -71,8 +64,8 @@ simulation.callbacks[:progress] = Callback(prog, IterationInterval(100))
 wizard = TimeStepWizard(cfl = 0.5)
 simulation.callbacks[:timestep] = Callback(wizard, IterationInterval(10))
 
-simulation.output_writers[:flow] = JLD2OutputWriter(model, model.velocities, overwrite_existing = true, filename = "forest_flow.jld2", schedule = TimeInterval(2minutes))
-simulation.output_writers[:kelp] = JLD2OutputWriter(model, (; positions = kelp.positions), overwrite_existing = true, filename = "forest_kelp.jld2", schedule = TimeInterval(2minutes))
+simulation.output_writers[:flow] = JLD2Writer(model, model.velocities, overwrite_existing = true, filename = "forest_flow.jld2", schedule = TimeInterval(2minutes))
+simulation.output_writers[:kelp] = JLD2Writer(model, kelp.positions, overwrite_existing = true, filename = "forest_kelp.jld2", schedule = TimeInterval(2minutes))
 
 # Run!
 run!(simulation)
@@ -82,13 +75,15 @@ using CairoMakie, JLD2
 
 u = FieldTimeSeries("forest_flow.jld2", "u")
 
-file = jldopen("forest_kelp.jld2")
+u .-= 0.05
 
-iterations = keys(file["timeseries/t"])
+x = load("forest_kelp.jld2", "timeseries/x")
+y = load("forest_kelp.jld2", "timeseries/y")
+z = load("forest_kelp.jld2", "timeseries/z")
 
-positions = [file["timeseries/positions/$it"] for it in iterations]
-
-close(file)
+indices = keys(x)
+indices = [parse(Int, idx) for idx in indices if idx != "serialized"]
+indices = sort(indices)
 
 times = u.times
 
@@ -98,25 +93,23 @@ nothing
 
 n = Observable(1)
 
-x_position_first = @lift vec([positions[$n][p, 1, 1] for (p, x₀) in enumerate(holdfast_x)])
-z_position_first = @lift vec([positions[$n][p, 1, 3] for (p, z₀) in enumerate(holdfast_z)])
+x_first = @lift x["$(indices[$n])"][:, 2] .- x["$(indices[$n])"][:, 1]
+z_first = @lift z["$(indices[$n])"][:, 2] .- z["$(indices[$n])"][:, 1]
 
-abs_x_position_first = @lift vec([positions[$n][p, 1, 1] + x₀ for (p, x₀) in enumerate(holdfast_x)])
-abs_z_position_first = @lift vec([positions[$n][p, 1, 3] + z₀ for (p, z₀) in enumerate(holdfast_z)])
+x_end = @lift x["$(indices[$n])"][:, 3] .- x["$(indices[$n])"][:, 1]
+y_end = @lift y["$(indices[$n])"][:, 3] .- y["$(indices[$n])"][:, 1]
 
-x_position_ends = @lift vec([positions[$n][p, 2, 1] for (p, x₀) in enumerate(holdfast_x)])
-y_position_ends = @lift vec([positions[$n][p, 2, 2] for (p, y₀) in enumerate(holdfast_y)])
+x_first_abs = @lift x["$(indices[$n])"][:, 2]
+z_first_abs = @lift z["$(indices[$n])"][:, 2]
 
-rel_x_position_ends = @lift vec([positions[$n][p, 2, 1] - positions[$n][p, 1, 1] for (p, x₀) in enumerate(holdfast_x)])
-rel_z_position_ends = @lift vec([positions[$n][p, 2, 3] - positions[$n][p, 1, 3] for (p, z₀) in enumerate(holdfast_z)])
+x_end_rel = @lift x["$(indices[$n])"][:, 3] .- x["$(indices[$n])"][:, 2]
+z_end_rel = @lift z["$(indices[$n])"][:, 3] .- z["$(indices[$n])"][:, 2]
 
-u_vert = @lift interior(u[$n], :, Int(grid.Ny/2), :) .- 0.05
+u_vert = @lift view(u[$n], :, Int(grid.Ny/2), :)
 
-u_surface = @lift interior(u[$n], :, :, grid.Nz) .- 0.05
+u_surface = @lift view(u[$n], :, :, grid.Nz)
 
 u_lims = (-0.06, 0.06)
-
-xf, yc, zc = nodes(u.grid, Face(), Center(), Center())
 
 fig = Figure(resolution = (1200, 800));
 
@@ -124,18 +117,18 @@ title = @lift "t = $(prettytime(u.times[$n]))"
 
 ax = Axis(fig[1:3, 1], aspect = DataAspect(); title, ylabel = "y (m)")
 
-hm = heatmap!(ax, xf, yc, u_surface, colorrange = u_lims, colormap = Reverse(:roma))
+hm = heatmap!(ax, u_surface, colorrange = u_lims, colormap = Reverse(:roma))
 
-arrows!(ax, holdfast_x, holdfast_y, x_position_ends, y_position_ends, color = :black)
+arrows!(ax, holdfast_x, holdfast_y, x_end, y_end, color = :black)
 
 ax = Axis(fig[4, 1], limits = (190, 350, -8, 0), aspect = AxisAspect(15), xlabel = "x (m)", ylabel = "z (m)")
 
-hm = heatmap!(ax, xf, zc, u_vert, colorrange = u_lims, colormap = Reverse(:roma))
+hm = heatmap!(ax, u_vert, colorrange = u_lims, colormap = Reverse(:roma))
 
 Colorbar(fig[1:4, 2], hm, label = "Velocity anomaly (m / s)")
 
-arrows!(ax, holdfast_x, holdfast_z, x_position_first, z_position_first, color = :black)
-arrows!(ax, abs_x_position_first, abs_z_position_first, rel_x_position_ends, rel_z_position_ends, color = :black)
+arrows!(ax, holdfast_x, holdfast_z, x_first, z_first, color = :black)
+arrows!(ax, x_first_abs, z_first_abs, x_end_rel, z_end_rel, color = :black)
 
 record(fig, "forest.mp4", 1:length(times); framerate = 10) do i; 
     n[] = i

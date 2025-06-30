@@ -13,22 +13,14 @@ julia> using GiantKelpDynamics, Oceananigans
 
 julia> grid = RectilinearGrid(size=(16, 16, 16), extent=(100, 100, 8));
 
-julia> kelp = GiantKelp(; grid, number_nodes = 2, holdfast_x = [10., 20.], holdfast_y = [10., 20], holdfast_z = [-8., -8.])
-Giant kelp (Macrocystis pyrifera) model with 2 individuals of 2 nodes. 
+julia> kelp = GiantKelp(; grid, number_nodes = 2, holdfast_x = [10., 20.], holdfast_y = [10., 20])
+Giant kelp (Macrocystis pyrifera) model with 2 individuals of 2 nodes.
  Base positions:
  - x ∈ [10.0, 20.0]
  - y ∈ [10.0, 20.0]
  - z ∈ [-8.0, -8.0]
 
-julia> set!(kelp, positions = [0 0 8; 8 0 8])
-
-julia> initial_positions = zeros(2, 2, 3);
-
-julia> initial_positions[1, :, :] = [0 0 8; 8 0 8];
-
-julia> initial_positions[1, :, :] = [0 0 -8; 8 0 -8];
-
-julia> set!(kelp, positions = initial_positions)
+julia> set!(kelp, positions = (x = [0, 8], y = zeros(2), z = [0, 8]))
 
 ```
 """
@@ -96,15 +88,15 @@ julia> using GiantKelpDynamics, Oceananigans, OceanBioME
 
 julia> grid = RectilinearGrid(size=(16, 16, 16), extent=(100, 100, 8));
 
-julia> kelp = GiantKelp(; grid, number_nodes = 2, holdfast_x = [10., 20.], holdfast_y = [10., 20], holdfast_z = [-8., -8.])
-Giant kelp (Macrocystis pyrifera) model with 2 individuals of 2 nodes. 
+julia> kelp = GiantKelp(; grid, number_nodes = 2, holdfast_x = [10., 20.], holdfast_y = [10., 20])
+Giant kelp (Macrocystis pyrifera) model with 2 individuals of 2 nodes.
  Base positions:
  - x ∈ [10.0, 20.0]
  - y ∈ [10.0, 20.0]
  - z ∈ [-8.0, -8.0]
 
 julia> biogeochemistry = Biogeochemistry(NothingBGC(); particles = kelp)
-No biogeochemistry 
+No biogeochemistry
  Light attenuation: Nothing
  Sediment: Nothing
  Particles: Giant kelp (Macrocystis pyrifera) model with 2 individuals of 2 nodes.

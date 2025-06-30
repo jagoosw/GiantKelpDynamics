@@ -165,8 +165,8 @@ julia> using GiantKelpDynamics, Oceananigans
 
 julia> grid = RectilinearGrid(size=(16, 16, 16), extent=(100, 100, 8));
 
-julia> kelp = GiantKelp(; grid, holdfast_x = [10., 20.], holdfast_y = [10., 20], holdfast_z = [-8., -8.])
-Giant kelp (Macrocystis pyrifera) model with 2 individuals of 8 nodes. 
+julia> kelp = GiantKelp(; grid, holdfast_x = [10., 20.], holdfast_y = [10., 20])
+Giant kelp (Macrocystis pyrifera) model with 2 individuals of 2 nodes.
  Base positions:
  - x ∈ [10.0, 20.0]
  - y ∈ [10.0, 20.0]
@@ -177,7 +177,7 @@ Giant kelp (Macrocystis pyrifera) model with 2 individuals of 8 nodes.
 function GiantKelp(; grid, 
                      holdfast_x, holdfast_y,
                      scalefactor = ones(length(holdfast_x)),
-                     number_nodes = 8,
+                     number_nodes = 2,
                      segment_unstretched_length = 3.,
                      stipe_radii = 0.004,
                      initial_blade_areas = sum(segment_unstretched_length)^0.995*0.297 * (isa(segment_unstretched_length, Number) ? 

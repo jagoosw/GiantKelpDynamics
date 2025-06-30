@@ -22,9 +22,9 @@ end
     Δy = grid.Δyᵃᶜᵃ
     Δz = grid.z.Δᵃᵃᶜ
 
-    i = round(Int, X.x/Δx)
-    j = round(Int, X.y/Δy)
-    k = grid.Nz - round(Int, X.z/Δz)
+    i = round(Int, X.x/Δx) + 1
+    j = round(Int, X.y/Δy) + 1
+    k = round(Int, (X.z + grid.Lz)/Δz) + 1
 
     TX, TY, TZ = topology(grid)
 

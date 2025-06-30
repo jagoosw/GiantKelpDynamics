@@ -40,7 +40,7 @@ segment_unstretched_length = [10., 10.]
 
         CUDA.@allowscalar for n in 1:500
             time_step!(model, Δt)
-            push!(concentration_record, sum([model.tracers.C[floor(Int, grid.Nx/2), floor(Int, grid.Ny/2), k] * volume(1, 1, k, grid, Center(), Center(), Center()) for k=1:grid.Nz]))
+            push!(concentration_record, sum([model.tracers.C[floor(Int, grid.Nx/2)+1, floor(Int, grid.Ny/2)+1, k] * volume(1, 1, k, grid, Center(), Center(), Center()) for k=1:grid.Nz]))
         end
 
         @test all([isapprox(conc, total_released_tracer(n * Δt), atol = 0.01) for (n, conc) in enumerate(concentration_record)])
@@ -70,7 +70,7 @@ segment_unstretched_length = [10., 10.]
 
     CUDA.@allowscalar for n in 1:500
         time_step!(model, Δt)
-        push!(concentration_record, sum([model.tracers.C[floor(Int, grid.Nx/2), floor(Int, grid.Ny/2), k] * volume(1, 1, k, grid, Center(), Center(), Center()) for k=1:grid.Nz]))
+        push!(concentration_record, sum([model.tracers.C[floor(Int, grid.Nx/2)+1, floor(Int, grid.Ny/2)+1, k] * volume(1, 1, k, grid, Center(), Center(), Center()) for k=1:grid.Nz]))
     end
 
     @test all([isapprox(conc, total_released_tracer(n * Δt), atol = 0.01) for (n, conc) in enumerate(concentration_record)])

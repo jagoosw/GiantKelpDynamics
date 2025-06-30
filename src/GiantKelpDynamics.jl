@@ -7,7 +7,7 @@ Implemented in the framework of OceanBioME.jl[StrongWright2023](@citep) and the 
 """
 module GiantKelpDynamics
 
-export GiantKelp, NothingBGC, RK3, Euler, UtterDenny
+export GiantKelp, NothingBGC, RK3, Euler, UtterDenny, UtterDennySpeed
 
 using Adapt, CUDA
 
@@ -32,7 +32,7 @@ import Oceananigans.Biogeochemistry: update_tendencies!
 import Oceananigans.Models.LagrangianParticleTracking: update_lagrangian_particle_properties!, _advect_particles!
 import Oceananigans.OutputWriters: fetch_output, convert_output
 
-struct GiantKelp{FT, VT, MT, TM, KP, TS, DT, TF, CD} <: AbstractBiogeochemicalParticles
+struct GiantKelp{KP, FT, VT, MT, TM, TS, DT, TF, CD} <: AbstractBiogeochemicalParticles
     scalefactor :: VT
 
     #information about nodes
@@ -75,7 +75,7 @@ pneumatocyst_buoyancy :: FT
                        tracer_forcing::TF,
                        custom_dynamics::CD) where {FT, VT, MT, TM, KP, TS, DT, TF, CD}
 
-        return new{FT, VT, MT, TM, KP, TS, DT, TF, CD}(scalefactor,
+        return new{KP, FT, VT, MT, TM, TS, DT, TF, CD}(scalefactor,
                                                        positions,
                                                        velocities,
                                                        relaxed_lengths,
@@ -216,8 +216,12 @@ function GiantKelp(; grid,
     old_accelerations = threeD_array(number_kelp, number_nodes+1, arch)
     drag_forces = threeD_array(number_kelp, number_nodes+1, arch)
 
-    if isnothing(max_Δt)
+    if isnothing(max_Δt) && (kinematics isa UtterDennySpeed)
         max_Δt = on_architecture(arch, ones(number_kelp) * 0.001)
+    elseif isnothing(max_Δt)
+        max_Δt = on_architecture(arch, ones(number_kelp, number_nodes+1) * 0.001)
+
+        CUDA.@allowscalar max_Δt[1] = Inf
     end
 
     return GiantKelp(scalefactor,
@@ -272,85 +276,12 @@ show(io::IO, particles::GiantKelp) = print(io, string(summary(particles), " \n",
                                                       " - y ∈ [$(minimum(particles.positions.y)), $(maximum(particles.positions.y))]\n",
                                                       " - z ∈ [$(minimum(particles.positions.z)), $(maximum(particles.positions.z))]"))
 
-function update_tendencies!(bgc, particles::GiantKelp, model)
-    Gᵘ, Gᵛ, Gʷ = @inbounds model.timestepper.Gⁿ[(:u, :v, :w)]
-
-    tracer_tendencies = @inbounds model.timestepper.Gⁿ[keys(particles.tracer_forcing)]
-
-    n_particles = size(particles, 1)
-    worksize = n_particles
-    workgroup = min(256, worksize)
-
-    #####
-    ##### Apply the tracer tendencies from each particle
-    ####
-    update_tendencies_kernel! = _update_tendencies!(device(model.architecture), workgroup, worksize)
-
-    update_tendencies_kernel!(particles, Gᵘ, Gᵛ, Gʷ, tracer_tendencies, model.grid, model.tracers, values(particles.tracer_forcing)) 
-
-    synchronize(device(architecture(model)))
-end
-
-@kernel function _update_tendencies!(particles, Gᵘ, Gᵛ, Gʷ, tracer_tendencies, grid, tracers, tracer_forcings)
-    p = @index(Global)
-
-    sf = particles.scalefactor[p]
-    positions = particles.positions
-
-    x⃗₀ = @inbounds (x = positions.x[p, 1], y = positions.y[p, 1], z = positions.z[p, 1])
-    x⃗₁ = @inbounds (x = positions.x[p, 2], y = positions.y[p, 2], z = positions.z[p, 2])
-    x⃗₂ = @inbounds (x = positions.x[p, 3], y = positions.y[p, 3], z = positions.z[p, 3])
-
-    i₀, j₀, k₀ = get_closest_ijk(grid, x⃗₀)
-    i₁, j₁, k₁ = get_closest_ijk(grid, x⃗₁)
-    i₂, j₂, k₂ = get_closest_ijk(grid, x⃗₂)
-
-    k1₁ = min(k₀, k₁)
-    k2₁ = max(k₀, k₁)
-
-    k1₂ = min(k₁, k₂)
-    k2₂ = max(k₁, k₂)
-
-    vol1 = total_volume(grid, i₁, j₁, Val(k1₁), Val(k2₁))
-    vol2 = total_volume(grid, i₂, j₂, Val(k1₂), Val(k2₂))
-
-    # first node
-    for k in k1₁:k2₁
-        scaling = sf / vol1 /  particles.kinematics.water_density
-
-        @inbounds atomic_add!(Gᵘ, i₁, j₁, k, - particles.drag_forces.x[p, 2] * scaling)
-        @inbounds atomic_add!(Gᵛ, i₁, j₁, k, - particles.drag_forces.y[p, 2] * scaling)
-        @inbounds atomic_add!(Gʷ, i₁, j₁, k, - particles.drag_forces.z[p, 2] * scaling)
-
-        for (tracer_idx, forcing) in enumerate(tracer_forcings)
-            tracer_tendency = @inbounds tracer_tendencies[tracer_idx]
-
-            total_scaling = sf / vol1 * volume(i₁, j₁, k, grid, Center(), Center(), Center())
-            atomic_add!(tracer_tendency, i₁, j₁, k, total_scaling * forcing.func(i₁, j₁, k, p, 1, grid, clock, particles, tracers, forcing.parameters))
-        end
-    end
-
-    # second node
-    for k in k1₂:k2₂
-        scaling = sf / vol2 /  particles.kinematics.water_density
-
-        @inbounds atomic_add!(Gᵘ, i₂, j₂, k, - particles.drag_forces.x[p, 3] * scaling)
-        @inbounds atomic_add!(Gᵛ, i₂, j₂, k, - particles.drag_forces.y[p, 3] * scaling)
-        @inbounds atomic_add!(Gʷ, i₂, j₂, k, - particles.drag_forces.z[p, 3] * scaling)
-
-        for (tracer_idx, forcing) in enumerate(tracer_forcings)
-            tracer_tendency = @inbounds tracer_tendencies[tracer_idx]
-
-            total_scaling = sf / vol2 * volume(i₂, j₂, k, grid, Center(), Center(), Center())
-            atomic_add!(tracer_tendency, i₂, j₂, k, total_scaling * forcing.func(i₂, j₂, k, p, 2, grid, clock, particles, tracers, forcing.parameters))
-        end
-    end
-end
-
 @inline total_volume(grid, i, j, ::Val{k1}, ::Val{k2}) where {k1, k2} = sum(
     ntuple(k0 -> volume(i, j, k0 + k1 - 1, grid, Center(), Center(), Center()), 
            Val(k2 - k1 + 1))
 )
+
+include("update_tendencies.jl")
 
 include("utils.jl")
 

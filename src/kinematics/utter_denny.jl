@@ -24,175 +24,161 @@ Sets up the kinematic model for giant kelp motion from [Utter1996](@citet) and [
                damping_timescale :: FT = 5.
 end
 
-@kernel function (kinematics::UtterDenny)(x_holdfast, y_holdfast, z_holdfast, 
-                                          positions, positions_ijk,
-                                          velocities, 
-                                          pneumatocyst_volumes, stipe_radii, 
-                                          blade_areas, relaxed_lengths, 
-                                          accelerations, drag_forces, 
-                                          water_velocities, water_accelerations,
-                                          kinematics, grid::AbstractGrid{FT, TX, TY, TZ}) where {FT, TX, TY, TZ}
+
+function update_lagrangian_particle_properties!(particles::GiantKelp{<:UtterDenny}, model, bgc, Δt)
+    # this will need to be modified when we have biological properties to update
+    n_particles = size(particles, 1)
+    n_nodes = size(particles, 2) - 1
+    worksize = (n_particles, n_nodes)
+    workgroup = (1, min(256, worksize[1]))
+
+    kinematics_kernel! = particles.kinematics(device(model.architecture), workgroup, worksize)
+    step_kernel! = step_nodes!(device(model.architecture), workgroup, worksize)
+
+    water_accelerations = @inbounds model.timestepper.Gⁿ[(:u, :v, :w)]
+
+    step_t = zero(eltype(particles.positions.x))
+
+    while step_t < Δt
+        kinematics_kernel!(particles.positions, 
+                           particles.velocities,
+                           particles.stipe_radii,  
+                           particles.blade_areas, particles.relaxed_lengths, 
+                           particles.accelerations, particles.drag_forces, 
+                           model.velocities, water_accelerations,
+                           particles.kinematics, model.grid,
+                           particles.max_Δt)
+
+        synchronize(device(architecture(model)))
+
+        stage_Δt = min(minimum(particles.max_Δt), Δt - step_t)# max(1e-3 * exp(-model.clock.time/6000), min(minimum(particles.max_Δt), Δt - step_t))
+
+        if stage_Δt > Δt / 1e10
+            step_kernel!(particles.accelerations, particles.old_accelerations, 
+                        particles.velocities, particles.old_velocities,
+                        particles.positions, 
+                        particles.timestepper, stage_Δt)
+
+            synchronize(device(architecture(model)))
+        end
+
+        step_t += stage_Δt
+    end
+
+    particles.custom_dynamics(particles, model, bgc, Δt)
+end
+
+@kernel function (kinematics::UtterDenny)(
+            positions, 
+            velocities, 
+            stipe_radii, 
+            blade_areas, relaxed_lengths, 
+            accelerations, drag_forces, 
+            water_velocities, water_accelerations,
+            kinematics, grid::AbstractGrid{FT, TX, TY, TZ},
+            max_Δt) where {FT, TX, TY, TZ}
+
     p, n = @index(Global, NTuple)
+
+    n += 1
+
+    n_nodes = size(positions.x, 2)
+
+    zero_vector!(p, n, accelerations)
 
     spring_constant = kinematics.spring_constant
     spring_exponent = kinematics.spring_exponent
-    ρₒ = kinematics.water_density
-    ρₚ = kinematics.pneumatocyst_specific_buoyancy
-    g = kinematics.gravitational_acceleration
+    ρₒ  = kinematics.water_density
     Cᵈˢ = kinematics.stipe_drag_coefficient
     Cᵈᵇ = kinematics.blade_drag_coefficient
-    Cᵃ = kinematics.added_mass_coefficient
-    τ = kinematics.damping_timescale
+    Cᵃ  = kinematics.added_mass_coefficient
+    τ   = kinematics.damping_timescale
+    Fᵇ  = kinematics.pneumatocyst_specific_buoyancy
 
-    xⁱ = positions[p, n, 1]
-    yⁱ = positions[p, n, 2]
-    zⁱ = positions[p, n, 3]
+    rˢ = stipe_radii
 
-    uⁱ = velocities[p, n, 1]
-    vⁱ = velocities[p, n, 2]
-    wⁱ = velocities[p, n, 3]
+    x⃗ᵢ = @inbounds (x = positions.x[p, n], y = positions.y[p, n], z = positions.z[p, n])
+    x⃗ᵢ₋₁ = @inbounds (x = positions.x[p, n-1], y = positions.y[p, n-1], z = positions.z[p, n-1])
 
-    # can we eliminate this branching logic
-    if n == 1
-        x⁻, y⁻, z⁻ = 0, 0, 0
-        u⁻, v⁻, w⁻ = 0, 0, 0
-    else
-        x⁻ = positions[p, n-1, 1]
-        y⁻ = positions[p, n-1, 2]
-        z⁻ = positions[p, n-1, 3]
+    u⃗ᵢ = @inbounds (x = velocities.x[p, n], y = velocities.y[p, n], z = velocities.z[p, n])
 
-        u⁻ = velocities[p, n-1, 1]
-        v⁻ = velocities[p, n-1, 2]
-        w⁻ = velocities[p, n-1, 3]
-    end
-
-    Δx = xⁱ - x⁻
-    Δy = yⁱ - y⁻
-    Δz = zⁱ - z⁻
-
-    X = x_holdfast[p] + xⁱ
-    Y = y_holdfast[p] + yⁱ
-    Z = z_holdfast[p] + zⁱ
-
-    l = sqrt(Δx^2 + Δy^2 + Δz^2)
-
-    # buoyancy
-    Vᵖ = pneumatocyst_volumes[p, n]
-
-    Fᴮ = ρₚ * Vᵖ * g
-
-    if Z >= 0
-        Fᴮ = 0
-    end
-
+    Δxᵢ = (x = x⃗ᵢ.x - x⃗ᵢ₋₁.x, y = x⃗ᵢ.y - x⃗ᵢ₋₁.y, z = x⃗ᵢ.z - x⃗ᵢ₋₁.z)
+    lᵢ = mag(Δxᵢ)
+    
     # drag
-    Aᵇ = blade_areas[p, n]
-    rˢ = stipe_radii[p, n]
-    Vᵐ = π * rˢ ^ 2 * l + Aᵇ * 0.01
-    mᵉ = (Vᵐ + Cᵃ * (Vᵐ + Vᵖ)) * ρₒ + Vᵖ * (ρₒ - 500) 
+    Aᵇ = @inbounds blade_areas[p, n-1]
+    Vᵐ = π * rˢ ^ 2 * lᵢ + Aᵇ * 0.01
+    l⁰ = @inbounds relaxed_lengths[p, n-1]
 
-    # we need ijk and this also reduces repetition of finding ijk
-    ℓx, ℓy, ℓz = Center(), Center(), Center()
-    fidx = _fractional_indices(collapse_position(X, Y, Z, ℓx, ℓy, ℓz), grid, ℓx, ℓy, ℓz)
+    mᵉ = 0.774*0.297*l⁰^0.995#Vᵐ₁ * (1 + Cᵃ) * 20#50
 
-    ix = interpolator(fidx.i)
-    iy = interpolator(fidx.j)
-    iz = interpolator(fidx.k)
+    iᵢ, jᵢ, kᵢ = get_closest_ijk(grid, x⃗ᵢ)
+    iᵢ₋₁, jᵢ₋₁, kᵢ₋₁ = get_closest_ijk(grid, x⃗ᵢ₋₁)
 
-    i, j, k = (get_node(TX(), Int(ifelse(ix[3] < 0.5, ix[1], ix[2])), grid.Nx),
-               get_node(TY(), Int(ifelse(iy[3] < 0.5, iy[1], iy[2])), grid.Ny),
-               get_node(TZ(), Int(ifelse(iz[3] < 0.5, iz[1], iz[2])), grid.Nz))
+    k1 = min(kᵢ, kᵢ₋₁)
+    k2 = max(kᵢ, kᵢ₋₁)
 
-    positions_ijk[p, n, 1] = i
-    positions_ijk[p, n, 2] = j
-    positions_ijk[p, n, 3] = k
+    Uʷ = mean_water_velocity(iᵢ, jᵢ, k1, k2, water_velocities)
 
-    fidx2 = _fractional_indices(collapse_position(x⁻ + x_holdfast[p], y⁻ + y_holdfast[p], z⁻ + y_holdfast[p], ℓx, ℓy, ℓz), grid, ℓx, ℓy, ℓz)
+    Uʳ = @inbounds (x = Uʷ.x - u⃗ᵢ.x, y = Uʷ.y - u⃗ᵢ.y, z = Uʷ.z - u⃗ᵢ.z)
 
-    iz⁻ = interpolator(fidx2.k)
+    sʳ = sqrt(Uʳ.x^2 + Uʳ.y^2 + Uʳ.z^2)
 
-    k⁻ = get_node(TZ(), Int(ifelse(iz[3] < 0.5, iz⁻[1], iz⁻[2])), grid.Nz)
+    Aʷ = mean_water_velocity(iᵢ, jᵢ, k1, k2, water_accelerations)
+ 
+    θ = @inbounds acos(min(1, abs(Uʳ.x * Δxᵢ.x + Uʳ.y * Δxᵢ.y + Uʳ.z * Δxᵢ.z) / (sʳ * lᵢ + eps(0.0))))
 
-    k1 = min(k⁻, k)
-    k2 = max(k⁻, k)
+    Aˢ = 2 * rˢ * lᵢ * abs(sin(θ)) + π * rˢ * abs(cos(θ))
 
-    uʷ = mean_squared_field(water_velocities[1], i, j, k1, k2)
-    vʷ = mean_squared_field(water_velocities[2], i, j, k1, k2)
-    wʷ = mean_squared_field(water_velocities[3], i, j, k1, k2)
+    Fᴰ = ρₒ/2 * (Cᵈˢ * Aˢ + 0.0148 * Aᵇ) * sʳ^1.596 #(Cᵈˢ * Aˢ₁ + Cᵈᵇ * Aᵇ₁) * sʳ₁^2
 
-    uʳ = uʷ - uⁱ
-    vʳ = vʷ - vⁱ
-    wʳ = wʷ - wⁱ
+    add_components!(p, n, accelerations, Fᴰ, (x = Uʳ.x / (sʳ+eps(0.0)), y = Uʳ.y / (sʳ+eps(0.0)), z = Uʳ.z / (sʳ+eps(0.0))))
 
-    sʳ = sqrt(uʳ^2 + vʳ^2 + wʳ^2)
+    # tension
+    x⃗ᵢ₊₁ = @inbounds (x = positions.x[p, min(n+1, n_nodes)], y = positions.y[p, min(n+1, n_nodes)], z = positions.z[p, min(n+1, n_nodes)])
+    Δxᵢ₊₁ = (x = x⃗ᵢ₊₁.x - x⃗ᵢ.x, y = x⃗ᵢ₊₁.y - x⃗ᵢ.y, z = x⃗ᵢ₊₁.z - x⃗ᵢ.z)
+    lᵢ₊₁ = mag(Δxᵢ₊₁)
 
-    ∂ₜuʷ = mean_squared_field(water_accelerations[1], i, j, k1, k2)
-    ∂ₜvʷ = mean_squared_field(water_accelerations[2], i, j, k1, k2)
-    ∂ₜwʷ = mean_squared_field(water_accelerations[3], i, j, k1, k2)
+    l⁰₊ = @inbounds relaxed_lengths[p, min(n, n_nodes-1)]
 
-    θ = acos(min(1, abs(uʳ * Δx + vʳ * Δy + wʳ * Δz) / (sʳ * l + eps(0.0))))
-    Aˢ = 2 * rˢ * l * abs(sin(θ)) + π * rˢ * abs(cos(θ))
+    Aᶜ = π * rˢ ^ 2
 
-    Fᴰ₁ = 0.5 * ρₒ * (Cᵈˢ * Aˢ + Cᵈᵇ * Aᵇ) * sʳ * uʳ
-    Fᴰ₂ = 0.5 * ρₒ * (Cᵈˢ * Aˢ + Cᵈᵇ * Aᵇ) * sʳ * vʳ
-    Fᴰ₃ = 0.5 * ρₒ * (Cᵈˢ * Aˢ + Cᵈᵇ * Aᵇ) * sʳ * wʳ
+    T₋ = tension(lᵢ, l⁰, Aᶜ, spring_constant, spring_exponent)
+    T₊ = tension(lᵢ₊₁, l⁰₊, Aᶜ, spring_constant, spring_exponent)
 
-    # Tension
-    if n == size(relaxed_lengths, 2)
-        x⁺, y⁺, z⁺ = 0, 0, 0
-        u⁺, v⁺, w⁺ = 0, 0, 0
+    #=if n == 3
+        @info T₋, T₊, n_nodes, n+1, x⃗ᵢ₋₁, x⃗ᵢ, x⃗ᵢ₊₁, lᵢ, lᵢ₊₁
+    end=#
 
-        Aᶜ⁺ = 0.0 
-        l₀⁺ = relaxed_lengths[p, n] 
-    else
-        x⁺ = positions[p, n+1, 1]
-        y⁺ = positions[p, n+1, 2]
-        z⁺ = positions[p, n+1, 3]
-
-        u⁺ = velocities[p, n+1, 1]
-        v⁺ = velocities[p, n+1, 2]
-        w⁺ = velocities[p, n+1, 3]
-
-        Aᶜ⁺ = π * stipe_radii[p, n + 1] ^ 2
-        l₀⁺ = relaxed_lengths[p, n + 1]
-    end
-
-    Aᶜ⁻ = π * rˢ ^ 2
-    l₀⁻ = relaxed_lengths[p, n]
-
-    Δx⁻ = x⁻ - xⁱ
-    Δy⁻ = y⁻ - yⁱ
-    Δz⁻ = z⁻ - zⁱ
-
-    Δx⁺ = x⁺ - xⁱ
-    Δy⁺ = y⁺ - yⁱ
-    Δz⁺ = z⁺ - zⁱ
-
-    l⁻ = sqrt(Δx⁻^2 + Δy⁻^2 + Δz⁻^2)
-    l⁺ = sqrt(Δx⁺^2 + Δy⁺^2 + Δz⁺^2)
-
-    T⁻  = tension(l⁻, l₀⁻, Aᶜ⁻, spring_constant, spring_exponent)
-    T⁻₁ = T⁻ * Δx⁻ / (l⁻ + eps(0.0))
-    T⁻₂ = T⁻ * Δy⁻ / (l⁻ + eps(0.0))
-    T⁻₃ = T⁻ * Δz⁻ / (l⁻ + eps(0.0))
-
-    T⁺ = tension(l⁺, l₀⁺, Aᶜ⁺, spring_constant, spring_exponent)
-    T⁺₁ = T⁺ * Δx⁺ / (l⁺ + eps(0.0))
-    T⁺₂ = T⁺ * Δy⁺ / (l⁺ + eps(0.0))
-    T⁺₃ = T⁺ * Δz⁺ / (l⁺ + eps(0.0))
+    add_components!(p, n, accelerations, T₋, (x = - Δxᵢ.x / (lᵢ+eps(0.0)), y = - Δxᵢ.y / (lᵢ+eps(0.0)), z = - Δxᵢ.z / (lᵢ+eps(0.0))))
+    add_components!(p, n, accelerations, T₊, (x = Δxᵢ₊₁.x / (lᵢ₊₁+eps(0.0)), y = Δxᵢ₊₁.y / (lᵢ₊₁+eps(0.0)), z = Δxᵢ₊₁.z / (lᵢ₊₁+eps(0.0))))
 
     # inertial force
-    Fⁱ₁ = ρₒ * (Vᵐ + Vᵖ) * ∂ₜuʷ
-    Fⁱ₂ = ρₒ * (Vᵐ + Vᵖ) * ∂ₜvʷ
-    Fⁱ₃ = ρₒ * (Vᵐ + Vᵖ) * ∂ₜwʷ
+    Fⁱ = ρₒ * Vᵐ * mag(Aʷ)
+
+    add_components!(p, n, accelerations, Fⁱ, (x = Aʷ.x / (mag(Aʷ)+eps(0.0)), y = Aʷ.y / (mag(Aʷ)+eps(0.0)), z = Aʷ.z / (mag(Aʷ)+eps(0.0))))
     
-    # add it all together
+    # buoyancy
 
-    accelerations[p, n, 1] = (Fᴰ₁ + T⁻₁ + T⁺₁ + Fⁱ₁) / mᵉ - velocities[p, n, 1] / τ
-    accelerations[p, n, 2] = (Fᴰ₂ + T⁻₂ + T⁺₂ + Fⁱ₂) / mᵉ - velocities[p, n, 2] / τ
-    accelerations[p, n, 3] = (Fᴰ₃ + T⁻₃ + T⁺₃ + Fⁱ₃ + Fᴮ) / mᵉ - velocities[p, n, 3] / τ
+    add_components!(p, n, accelerations, ifelse(x⃗ᵢ.z < 0, Fᵇ * l⁰ / sum(relaxed_lengths[p, :]), 0), (x = 0, y = 0, z = 1))
 
-    drag_forces[p, n, 1] = Fᴰ₁
-    drag_forces[p, n, 2] = Fᴰ₂
-    drag_forces[p, n, 3] = Fᴰ₃
+    # finishing up
+
+    multiply_components!(p, n, accelerations, 1/mᵉ)
+    add_components!(p, n, accelerations, - 1 / τ, u⃗ᵢ)
+
+    set_components!(p, n, drag_forces, Fᴰ, (x = Uʳ.x / (sʳ+eps(0.0)), y = Uʳ.y / (sʳ+eps(0.0)), z = Uʳ.z / (sʳ+eps(0.0))))
+
+    # max timestep
+    α = spring_exponent
+
+    τₜ₁ = ifelse(T₊ == 0, Inf, sqrt(mᵉ / T₊ / (max(lᵢ, l⁰) * α - l⁰) * lᵢ * l⁰))
+    τₜ₂ = ifelse((T₋ == 0) || (lᵢ₊₁ == 0), Inf, sqrt(mᵉ / T₋ / (max(lᵢ₊₁, l⁰₊) * α - l⁰₊) * lᵢ₊₁ * l⁰₊))
+    τₐ  = mᵉ / abs(Fᴰ) / (sʳ + eps(0.0))
+    τᵇ  = sqrt(0.1 / (abs(Fᵇ) / mᵉ))
+    
+   #=if n == 2
+    @info τₜ₁, τₜ₂, τₐ, τᵇ
+    end=#
+    @inbounds max_Δt[p, n] = 0.5 * min(τₜ₁, τₜ₂, τₐ, τᵇ)
 end

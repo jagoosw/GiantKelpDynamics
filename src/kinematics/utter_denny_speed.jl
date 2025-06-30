@@ -23,6 +23,46 @@ Sets up the kinematic model for giant kelp motion from [Utter1996](@citet) and [
                damping_timescale :: FT = 5.
 end
 
+function update_lagrangian_particle_properties!(particles::GiantKelp{<:UtterDennySpeed}, model, bgc, Δt)
+    # this will need to be modified when we have biological properties to update
+    n_particles = size(particles, 1)
+    worksize = (n_particles, )
+    workgroup = (min(256, worksize[1]), )
+
+    kinematics_kernel! = particles.kinematics(device(model.architecture), workgroup, worksize)
+    step_kernel! = step_nodes!(device(model.architecture), workgroup, worksize)
+
+    water_accelerations = @inbounds model.timestepper.Gⁿ[(:u, :v, :w)]
+
+    step_t = zero(eltype(particles.positions.x))
+
+    while step_t < Δt
+        kinematics_kernel!(particles.positions, 
+                           particles.velocities,
+                           particles.stipe_radii,  
+                           particles.blade_areas, particles.relaxed_lengths, 
+                           particles.accelerations, particles.drag_forces, 
+                           model.velocities, water_accelerations,
+                           particles.kinematics, model.grid,
+                           particles.max_Δt)
+
+        synchronize(device(architecture(model)))
+
+        stage_Δt = min(minimum(particles.max_Δt), Δt - step_t)
+
+        step_kernel!(particles.accelerations, particles.old_accelerations, 
+                     particles.velocities, particles.old_velocities,
+                     particles.positions, 
+                     particles.timestepper, stage_Δt, Val(3))
+
+        synchronize(device(architecture(model)))
+
+        step_t += stage_Δt
+    end
+
+    particles.custom_dynamics(particles, model, bgc, Δt)
+end
+
 @kernel function (kinematics::UtterDennySpeed)(
             positions, 
             velocities, 
@@ -145,6 +185,7 @@ end
     τₜ₂ = ifelse(T₁₂ == 0, Inf, sqrt(mᵉ₂ / T₁₂ / (max(l₂, l⁰₂) * α - l⁰₂) * l₂ * l⁰₂))
     τₐ₁ = mᵉ₁ / abs(Fᴰ₁ / (sʳ₁ + eps(0.0)))
     τₐ₂ = mᵉ₂ / abs(Fᴰ₂ / (sʳ₂ + eps(0.0)))
-    
-    @inbounds max_Δt[p] = 0.99 * min(τₜ₁, τₜ₂, τₐ₁,  τₐ₂)
+    τᵇ  = sqrt(0.1 / (abs(Fᵇ) / (mᵉ₁ + mᵉ₂)))
+
+    @inbounds max_Δt[p] = 0.5 * min(τₜ₁, τₜ₂, τₐ₁,  τₐ₂, τᵇ)
 end

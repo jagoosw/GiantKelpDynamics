@@ -116,7 +116,7 @@ Returns nothing for `nothing(args...)`
 
 """
     GiantKelp(; grid, 
-                holdfast_x, holdfast_y, holdfast_z,
+                holdfast_x, holdfast_y,
                 scalefactor = ones(length(holdfast_x)),
                 number_nodes = 8,
                 segment_unstretched_length = 3.,

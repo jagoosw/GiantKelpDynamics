@@ -199,8 +199,8 @@ function GiantKelp(; grid,
     positions = threeD_array(number_kelp, number_nodes+1, arch; z0 = znodes(grid, Center(), Center(), Face())[1])
 
     CUDA.@allowscalar begin
-        positions.x .= holdfast_x
-        positions.y .= holdfast_y
+        positions.x .= on_architecture(arch, holdfast_x)
+        positions.y .= on_architecture(arch, holdfast_y)
     end
 
     velocities = threeD_array(number_kelp, number_nodes+1, arch)

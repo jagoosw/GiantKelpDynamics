@@ -1,24 +1,4 @@
 """
-    RK3(; γ :: G = (8//15, 5//12, 3//4),
-          ζ :: Z = (0.0, -17//60, -5//12)
-
-Holds parameters for a third-order Runge-Kutta-Wray time-stepping scheme described by Le and Moin (1991).
-"""
-struct RK3{G, Z}
-    γ :: G
-    ζ :: Z
-
-    function RK3(; γ :: G = (8//15, 5//12, 3//4),
-                   ζ :: Z = (0.0, -17//60, -5//12)) where {G, Z}
-        return new{G, Z}(γ, ζ)
-    end
-end
-
-@inline function (ts::RK3)(u⃗, u⃗⁻, Δt, stage)
-    return @inbounds Δt * ts.γ[stage] * u⃗ + Δt * ts.ζ[stage] * u⃗⁻
-end
-
-"""
     Euler()
 
 Sets up an Euler timestepper.
@@ -29,23 +9,62 @@ struct Euler end
     return Δt * u⃗
 end
 
-@inline stages(::RK3) = 1:3
-@inline stages(::Euler) = 1:1
+@inline function (ts::Euler)(p, n, u⃗, u⃗⁻, Δt)
+    x = ts(u⃗.x[p, n], u⃗⁻.x[p, n], Δt)
+    y = ts(u⃗.y[p, n], u⃗⁻.y[p, n], Δt)
+    z = ts(u⃗.z[p, n], u⃗⁻.z[p, n], Δt)
+    return (; x, y, z)
+end
 
-@kernel function step_nodes!(accelerations, old_accelerations, velocities, old_velocities, positions, holdfast_z, timestepper, Δt, stage)
+@kernel function step_nodes!(accelerations, old_accelerations, velocities, old_velocities, positions, timestepper, Δt, ::Val{N}) where N
+    p = @index(Global)
+
+    @inbounds for n=2:N
+        copy_components!(p, n, old_velocities, velocities)
+
+        dU = timestepper(p, n, accelerations, old_accelerations, Δt)
+
+        add_components!(p, n, velocities, 1, dU)
+
+        copy_components!(p, n, old_accelerations, accelerations)
+
+        dX = timestepper(p, n, velocities, old_velocities, Δt)
+
+        add_components!(p, n, positions, 1, dX)
+
+        positions.z[p, n] = ifelse(positions.z[p, n] > 0.0, zero(eltype(accelerations.x)), positions.z[p, n])
+    end
+end
+
+
+@kernel function step_nodes!(accelerations, old_accelerations, velocities, old_velocities, positions, timestepper, Δt)
     p, n = @index(Global, NTuple)
 
-    @inbounds for d=1:3
-        old_velocities[p, n, d] = velocities[p, n, d]
-        
-        velocities[p, n, d] += timestepper(accelerations[p, n, d], old_accelerations[p, n, d], Δt, stage)
-        
-        old_accelerations[p, n, d] = accelerations[p, n, d]
+    n += 1
 
-        positions[p, n, d] += timestepper(velocities[p, n, d], old_velocities[p, n, d], Δt, stage)
+    @inbounds begin
+        copy_components!(p, n, old_velocities, velocities)
 
-        if positions[p, n, 3] + holdfast_z[p] > 0.0 
-            positions[p, n, 3] = - holdfast_z[p]
-        end
+        dU = timestepper(p, n, accelerations, old_accelerations, Δt)
+
+        add_components!(p, n, velocities, 1, dU)
+
+        copy_components!(p, n, old_accelerations, accelerations)
+
+        dX = timestepper(p, n, velocities, old_velocities, Δt)
+
+        add_components!(p, n, positions, 1, dX)
+
+        positions.z[p, n] = ifelse(positions.z[p, n] > 0.0, zero(eltype(accelerations.x)), positions.z[p, n])
     end
+end
+
+@inline function copy_components!(p, n, A, B)
+    @inbounds begin
+        A.x[p, n] = B.x[p, n]
+        A.y[p, n] = B.y[p, n]
+        A.z[p, n] = B.z[p, n]
+    end
+
+    return nothing
 end

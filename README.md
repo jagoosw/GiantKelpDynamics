@@ -1,5 +1,7 @@
 # GiantKelpDynamics
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10727202.svg)](https://doi.org/10.5281/zenodo.10727202)
+[![Documentation](https://img.shields.io/badge/documentation-stable%20release-blue?style=flat-square)](https://jagoosw.github.io/GiantKelpDynamics/stable)
+[![Documentation](https://img.shields.io/badge/documentation-dev%20release-orange?style=flat-square)](https://jagoosw.github.io/GiantKelpDynamics/dev/)
 
 ``GiantKelpDynamics.jl`` is a Julia package providing a dynamical model for the motion (and in the future the growth and biogeochemical interactions) of giant kelp (Macrocystis pyrifera).
 
@@ -16,7 +18,7 @@ The kinematic model discretises each kelp individual into segments to which seve
 
 ![Diagram of the discretization and forces on each segment](https://github.com/jagoosw/GiantKelpDynamics/assets/26657828/4a8aef46-e5c8-45b0-939e-0bbc281b3253)
 
-Further details can be found in [Strong-Wright and Taylor, 2024](https://doi.org/10.1017/flo.2024.13 ).
+Further details can be found in [Strong-Wright and Taylor, 2024](https://doi.org/10.1017/flo.2024.13).
 
 ## Kelp forests
 The model is designed to be used to simulate kelp forests and reproduce their motion ([Strong-Wright and Taylor, 2024](https://doi.org/10.1017/flo.2024.13)). This figure shows an example of the flow around a forest:
@@ -24,7 +26,7 @@ The model is designed to be used to simulate kelp forests and reproduce their mo
 ![Tracer released from a kelp forest within a simple tidal flow](https://github.com/jagoosw/GiantKelpDynamics/assets/26657828/4df8b614-240f-4e44-bec1-4bbae4ebd7bb)
 
 ## Documentation
-Simple examples and documentation can be found [here](mailto:js2430@cam.ac.uk)
+Simple examples and documentation can be found [here](https://jagoosw.github.io/GiantKelpDynamics).
 
 ## Citation
-If you use this model in your work please cite [Strong-Wright and Taylor, 2023](mailto:js2430@cam.ac.uk) and link to this repository. You may also cite the specific version used by citing the [Zenode archive](https://zenodo.org/records/10727202).
+If you use this model in your work please cite [Strong-Wright and Taylor, 2024](https://doi.org/10.1017/flo.2024.13) and link to this repository. You may also cite the specific version used by citing the [Zenode archive](https://zenodo.org/records/10727202).

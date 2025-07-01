@@ -1,7 +1,7 @@
 name = "GiantKelpDynamics"
 uuid = "db8bd12b-bb4c-49ee-ad86-22fc2972064e"
 authors = ["Jago Stong-Wright <jagoosw@protonmail.com>"]
-version = "0.3.3"
+version = "0.4.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"

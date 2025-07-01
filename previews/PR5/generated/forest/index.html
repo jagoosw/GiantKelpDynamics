@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Forest · GiantKelpDynamics.jl</title><meta name="title" content="Forest · GiantKelpDynamics.jl"/><meta property="og:title" content="Forest · GiantKelpDynamics.jl"/><meta property="twitter:title" content="Forest · GiantKelpDynamics.jl"/><meta name="description" content="Documentation for GiantKelpDynamics.jl."/><meta property="og:description" content="Documentation for GiantKelpDynamics.jl."/><meta property="twitter:description" content="Documentation for GiantKelpDynamics.jl."/><meta property="og:url" content="https://jagosw.com/GiantKelpDynamics/stable/generated/forest/"/><meta property="twitter:url" content="https://jagosw.com/GiantKelpDynamics/stable/generated/forest/"/><link rel="canonical" href="https://jagosw.com/GiantKelpDynamics/stable/generated/forest/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/citations.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">GiantKelpDynamics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../coming-soon/">Quick start</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox" checked/><label class="tocitem" for="menuitem-3"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../single_plant/">Single plant</a></li><li class="is-active"><a class="tocitem" href>Forest</a><ul class="internal"><li><a class="tocitem" href="#Install-dependencies"><span>Install dependencies</span></a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">Numerical implementation</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../coming-soon/">Coming soon</a></li></ul></li><li><a class="tocitem" href="../../references/">References</a></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox"/><label class="tocitem" for="menuitem-6"><span class="docs-label">Appendix</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../appendix/library/">Library</a></li><li><a class="tocitem" href="../../appendix/function_index/">Function index</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Forest</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Forest</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/jagoosw/GiantKelpDynamics" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/jagoosw/GiantKelpDynamics/blob/main/examples/forest.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="forest_example"><a class="docs-heading-anchor" href="#forest_example">Single plant</a><a id="forest_example-1"></a><a class="docs-heading-anchor-permalink" href="#forest_example" title="Permalink"></a></h1><p>In this example we setup a single plant in a narrow periodic channel to help understand the drag of the kelp on the water</p><h2 id="Install-dependencies"><a class="docs-heading-anchor" href="#Install-dependencies">Install dependencies</a><a id="Install-dependencies-1"></a><a class="docs-heading-anchor-permalink" href="#Install-dependencies" title="Permalink"></a></h2><p>First we check we have the dependencies installed</p><pre><code class="language-julia hljs">using Pkg
+pkg&quot;add Oceananigans OceanBioME GiantKelpDynamics CairoMakie JLD2&quot;</code></pre><p>Load the packages and setup the models</p><pre><code class="language-julia hljs">using Oceananigans, GiantKelpDynamics, OceanBioME, Oceananigans.Units
+using OceanBioME: Biogeochemistry
+
+grid = RectilinearGrid(size = (128, 64, 8), extent = (1kilometer, 500, 8))
+
+xc, yc, zc = nodes(grid, Center(), Center(), Center())
+
+x_spacing = xc[27]:xspacings(grid, Center()):xc[38]
+y_spacing = yc[27]:yspacings(grid, Center()):yc[38]
+
+holdfast_x = vec([x for x in x_spacing, y in y_spacing])
+holdfast_y = vec([y for x in x_spacing, y in y_spacing])
+holdfast_z = vec([-8. for x in x_spacing, y in y_spacing])
+
+scalefactor = 1.5 * (xspacings(grid, Center()) * yspacings(grid, Center())) .* ones(length(holdfast_x))
+
+scalefactor = vec([x for x in x_spacing, y in y_spacing])
+
+number_nodes = 2
+
+segment_unstretched_length = [16., 8.]
+
+max_Δt = 1.
+
+kelp = GiantKelp(; grid,
+                   holdfast_x, holdfast_y, holdfast_z,
+                   scalefactor, number_nodes, segment_unstretched_length,
+                   max_Δt,
+                   initial_blade_areas = 3 .* [0.2, 0.8])
+
+@inline sponge(x, y, z) = ifelse(x &lt; 100, 1, 0)
+
+u = Relaxation(; rate = 1/200, target = 0.05, mask = sponge)
+v = Relaxation(; rate = 1/200, mask = sponge)
+w = Relaxation(; rate = 1/200, mask = sponge)
+
+model = NonhydrostaticModel(; grid,
+                              biogeochemistry = Biogeochemistry(NothingBGC(),
+                                                                particles = kelp),
+                              advection = WENO(),
+                              forcing = (; u, v, w),
+                              closure = AnisotropicMinimumDissipation())</code></pre><pre><code class="nohighlight hljs">NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 128×64×8 RectilinearGrid{Float64, Oceananigans.Grids.Periodic, Oceananigans.Grids.Periodic, Oceananigans.Grids.Bounded} on Oceananigans.Architectures.CPU with 3×3×3 halo
+├── timestepper: QuasiAdamsBashforth2TimeStepper
+├── tracers: ()
+├── closure: Oceananigans.TurbulenceClosures.AnisotropicMinimumDissipation{Oceananigans.TurbulenceClosures.ExplicitTimeDiscretization, @NamedTuple{}, Float64, Nothing}
+├── buoyancy: Nothing
+└── coriolis: Nothing</code></pre><p>Set the initial positions of the plant nodes (relaxed floating to the surface)</p><pre><code class="language-julia hljs">set!(kelp, positions = [0. 0. 8.; 8. 0. 8.])#[13.86 0. 8.; 21.86 0. 8.;])</code></pre><p>Sset an initial water velocity with random noise to initial conditions to induce turbulance</p><pre><code class="language-julia hljs">u₀(x, y, z) = 0.05 * (1 + 0.001 * randn())
+v₀(x, y, z) = 0.001 * randn()
+
+set!(model, u = u₀, v = v₀, w = v₀)</code></pre><p>Setup the simulaiton to save the flow and kelp positions</p><pre><code class="language-julia hljs">simulation = Simulation(model, Δt = 20, stop_time = 4hours)
+
+prog(sim) = @info &quot;Completed $(prettytime(time(simulation))) in $(simulation.model.clock.iteration) steps with Δt = $(prettytime(simulation.Δt))&quot;
+simulation.callbacks[:progress] = Callback(prog, IterationInterval(100))
+
+wizard = TimeStepWizard(cfl = 0.5)
+simulation.callbacks[:timestep] = Callback(wizard, IterationInterval(10))
+
+simulation.output_writers[:flow] = JLD2OutputWriter(model, model.velocities, overwrite_existing = true, filename = &quot;forest_flow.jld2&quot;, schedule = TimeInterval(2minutes))
+simulation.output_writers[:kelp] = JLD2OutputWriter(model, (; positions = kelp.positions), overwrite_existing = true, filename = &quot;forest_kelp.jld2&quot;, schedule = TimeInterval(2minutes))</code></pre><pre><code class="nohighlight hljs">JLD2OutputWriter scheduled on TimeInterval(2 minutes):
+├── filepath: ./forest_kelp.jld2
+├── 1 outputs: positions
+├── array type: Array{Float64}
+├── including: [:grid, :coriolis, :buoyancy, :closure]
+└── max filesize: Inf YiB</code></pre><p>Run!</p><pre><code class="language-julia hljs">run!(simulation)</code></pre><pre><code class="nohighlight hljs">[ Info: Initializing simulation...
+[ Info: Completed 0 seconds in 0 steps with Δt = 20 seconds
+[ Info:     ... simulation initialization complete (1.302 seconds)
+[ Info: Executing initial time step...
+[ Info:     ... initial time step complete (4.610 seconds).
+[ Info: Completed 50.685 minutes in 100 steps with Δt = 41.071 seconds
+[ Info: Completed 1.678 hours in 200 steps with Δt = 39.808 seconds
+[ Info: Completed 2.589 hours in 300 steps with Δt = 40.788 seconds
+[ Info: Completed 3.600 hours in 400 steps with Δt = 40.167 seconds
+[ Info: Simulation is stopping after running for 2.313 minutes.
+[ Info: Simulation time 4 hours equals or exceeds stop time 4 hours.
+</code></pre><p>Next we load the data</p><pre><code class="language-julia hljs">using CairoMakie, JLD2
+
+u = FieldTimeSeries(&quot;forest_flow.jld2&quot;, &quot;u&quot;)
+
+file = jldopen(&quot;forest_kelp.jld2&quot;)
+
+iterations = keys(file[&quot;timeseries/t&quot;])
+
+positions = [file[&quot;timeseries/positions/$it&quot;] for it in iterations]
+
+close(file)
+
+times = u.times
+
+nothing</code></pre><p>Now we can animate the motion of the plant and attenuation of the flow</p><pre><code class="language-julia hljs">n = Observable(1)
+
+x_position_first = @lift vec([positions[$n][p, 1, 1] for (p, x₀) in enumerate(holdfast_x)])
+z_position_first = @lift vec([positions[$n][p, 1, 3] for (p, z₀) in enumerate(holdfast_z)])
+
+abs_x_position_first = @lift vec([positions[$n][p, 1, 1] + x₀ for (p, x₀) in enumerate(holdfast_x)])
+abs_z_position_first = @lift vec([positions[$n][p, 1, 3] + z₀ for (p, z₀) in enumerate(holdfast_z)])
+
+x_position_ends = @lift vec([positions[$n][p, 2, 1] for (p, x₀) in enumerate(holdfast_x)])
+y_position_ends = @lift vec([positions[$n][p, 2, 2] for (p, y₀) in enumerate(holdfast_y)])
+
+rel_x_position_ends = @lift vec([positions[$n][p, 2, 1] - positions[$n][p, 1, 1] for (p, x₀) in enumerate(holdfast_x)])
+rel_z_position_ends = @lift vec([positions[$n][p, 2, 3] - positions[$n][p, 1, 3] for (p, z₀) in enumerate(holdfast_z)])
+
+u_vert = @lift interior(u[$n], :, Int(grid.Ny/2), :) .- 0.05
+
+u_surface = @lift interior(u[$n], :, :, grid.Nz) .- 0.05
+
+u_lims = (-0.06, 0.06)
+
+xf, yc, zc = nodes(u.grid, Face(), Center(), Center())
+
+fig = Figure(resolution = (1200, 800));
+
+title = @lift &quot;t = $(prettytime(u.times[$n]))&quot;
+
+ax = Axis(fig[1:3, 1], aspect = DataAspect(); title, ylabel = &quot;y (m)&quot;)
+
+hm = heatmap!(ax, xf, yc, u_surface, colorrange = u_lims, colormap = Reverse(:roma))
+
+arrows!(ax, holdfast_x, holdfast_y, x_position_ends, y_position_ends, color = :black)
+
+ax = Axis(fig[4, 1], limits = (190, 350, -8, 0), aspect = AxisAspect(15), xlabel = &quot;x (m)&quot;, ylabel = &quot;z (m)&quot;)
+
+hm = heatmap!(ax, xf, zc, u_vert, colorrange = u_lims, colormap = Reverse(:roma))
+
+Colorbar(fig[1:4, 2], hm, label = &quot;Velocity anomaly (m / s)&quot;)
+
+arrows!(ax, holdfast_x, holdfast_z, x_position_first, z_position_first, color = :black)
+arrows!(ax, abs_x_position_first, abs_z_position_first, rel_x_position_ends, rel_z_position_ends, color = :black)
+
+record(fig, &quot;forest.mp4&quot;, 1:length(times); framerate = 10) do i;
+    n[] = i
+end</code></pre><pre><code class="nohighlight hljs">&quot;forest.mp4&quot;</code></pre><p><video src="../forest.mp4" controls="true" title><a href="../forest.mp4"></a></video> In this video the limitations of the simplified drag stencil can be seen (see previous versions for a more complex stencil). It is better suited to the forest application like in the <a href="#forest_example">forest example</a></p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../single_plant/">« Single plant</a><a class="docs-footer-nextpage" href="../../coming-soon/">Coming soon »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Monday 1 April 2024 13:07">Monday 1 April 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

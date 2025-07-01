@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Single plant · GiantKelpDynamics.jl</title><meta name="title" content="Single plant · GiantKelpDynamics.jl"/><meta property="og:title" content="Single plant · GiantKelpDynamics.jl"/><meta property="twitter:title" content="Single plant · GiantKelpDynamics.jl"/><meta name="description" content="Documentation for GiantKelpDynamics.jl."/><meta property="og:description" content="Documentation for GiantKelpDynamics.jl."/><meta property="twitter:description" content="Documentation for GiantKelpDynamics.jl."/><meta property="og:url" content="https://jagosw.com/GiantKelpDynamics/stable/generated/single_plant/"/><meta property="twitter:url" content="https://jagosw.com/GiantKelpDynamics/stable/generated/single_plant/"/><link rel="canonical" href="https://jagosw.com/GiantKelpDynamics/stable/generated/single_plant/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/citations.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">GiantKelpDynamics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../coming-soon/">Quick start</a></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox" checked/><label class="tocitem" for="menuitem-3"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li class="is-active"><a class="tocitem" href>Single plant</a><ul class="internal"><li><a class="tocitem" href="#Install-dependencies"><span>Install dependencies</span></a></li></ul></li><li><a class="tocitem" href="../forest/">Forest</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">Numerical implementation</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../coming-soon/">Coming soon</a></li></ul></li><li><a class="tocitem" href="../../references/">References</a></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox"/><label class="tocitem" for="menuitem-6"><span class="docs-label">Appendix</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../appendix/library/">Library</a></li><li><a class="tocitem" href="../../appendix/function_index/">Function index</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Single plant</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Single plant</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/jagoosw/GiantKelpDynamics" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/jagoosw/GiantKelpDynamics/blob/main/examples/single_plant.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="single_example"><a class="docs-heading-anchor" href="#single_example">Single plant</a><a id="single_example-1"></a><a class="docs-heading-anchor-permalink" href="#single_example" title="Permalink"></a></h1><p>In this example we setup a single plant in a narrow periodic channel to help understand the drag of the kelp on the water</p><h2 id="Install-dependencies"><a class="docs-heading-anchor" href="#Install-dependencies">Install dependencies</a><a id="Install-dependencies-1"></a><a class="docs-heading-anchor-permalink" href="#Install-dependencies" title="Permalink"></a></h2><p>First we check we have the dependencies installed</p><pre><code class="language-julia hljs">using Pkg
+pkg&quot;add Oceananigans OceanBioME GiantKelpDynamics CairoMakie JLD2&quot;</code></pre><p>Load the packages and setup the models</p><pre><code class="language-julia hljs">using Oceananigans, GiantKelpDynamics, OceanBioME, Oceananigans.Units
+using OceanBioME: Biogeochemistry
+
+grid = RectilinearGrid(size = (256, 32, 32), extent = (100, 8, 8))
+
+holdfast_x = [20.]
+holdfast_y = [4.]
+
+kelp = GiantKelp(; grid,
+                   holdfast_x, holdfast_y,
+                   number_nodes = 8,
+                   kinematics = UtterDenny())
+
+@inline sponge(x, y, z) = ifelse(x &lt; 10, 1, 0)
+
+u = Relaxation(; rate = 1/20, target = 0.1, mask = sponge)
+v = Relaxation(; rate = 1/20, mask = sponge)
+w = Relaxation(; rate = 1/20, mask = sponge)
+
+model = NonhydrostaticModel(; grid,
+                              biogeochemistry = Biogeochemistry(NothingBGC(),
+                                                                particles = kelp),
+                              advection = WENO(),
+                              forcing = (; u, v, w),
+                              closure = AnisotropicMinimumDissipation())</code></pre><pre><code class="nohighlight hljs">NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 256×32×32 RectilinearGrid{Float64, Oceananigans.Grids.Periodic, Oceananigans.Grids.Periodic, Oceananigans.Grids.Bounded} on Oceananigans.Architectures.CPU with 3×3×3 halo
+├── timestepper: RungeKutta3TimeStepper
+├── advection scheme: WENO{3, Float64, Float32}(order=5)
+├── tracers: ()
+├── closure: Oceananigans.TurbulenceClosures.AnisotropicMinimumDissipation{Oceananigans.TurbulenceClosures.ExplicitTimeDiscretization, @NamedTuple{}, Float64, Nothing}
+├── buoyancy: Nothing
+└── coriolis: Nothing</code></pre><p>Set the initial positions of the plant nodes (relaxed floating to the surface), and the set an initial water velocity</p><pre><code class="language-julia hljs">set!(kelp, positions = (x = [0, 0, 0, 0, 3, 6, 9, 12, 15] .+ 20, y = ones(8) * 4, z = [-8, -5, -2, 0, 0, 0, 0, 0]))
+
+set!(model, u = 0.1)</code></pre><p>Setup the simulaiton to save the flow and kelp positions</p><pre><code class="language-julia hljs">simulation = Simulation(model, Δt = 0.5, stop_time = 10minutes)
+
+prog(sim) = @info &quot;Completed $(prettytime(time(sim))) in $(sim.model.clock.iteration) steps with Δt = $(prettytime(sim.Δt)) ($(prettytime(minimum(sim.model.biogeochemistry.particles.max_Δt)))))&quot;
+
+simulation.callbacks[:progress] = Callback(prog, IterationInterval(100))
+
+wizard = TimeStepWizard(cfl = 0.5)
+simulation.callbacks[:timestep] = Callback(wizard, IterationInterval(10))
+
+simulation.output_writers[:flow] = JLD2Writer(model, model.velocities, overwrite_existing = true, filename = &quot;single_flow.jld2&quot;, schedule = TimeInterval(10))
+simulation.output_writers[:kelp] = JLD2Writer(model, kelp.positions, overwrite_existing = true, filename = &quot;single_kelp.jld2&quot;, schedule = TimeInterval(10))</code></pre><pre><code class="nohighlight hljs">JLD2Writer scheduled on TimeInterval(10 seconds):
+├── filepath: single_kelp.jld2
+├── 3 outputs: (x, y, z)
+├── array type: Array{Float32}
+├── including: [:grid, :coriolis, :buoyancy, :closure]
+├── file_splitting: NoFileSplitting
+└── file size: 35.6 KiB</code></pre><p>Run!</p><pre><code class="language-julia hljs">run!(simulation)</code></pre><pre><code class="nohighlight hljs">[ Info: Initializing simulation...
+[ Info: Completed 0 seconds in 0 steps with Δt = 500 ms (1 ms))
+[ Info:     ... simulation initialization complete (10.898 seconds)
+[ Info: Executing initial time step...
+[ Info:     ... initial time step complete (7.614 seconds).
+[ Info: Completed 1.398 minutes in 100 steps with Δt = 1.297 seconds (58.560 ms))
+[ Info: Completed 4.089 minutes in 200 steps with Δt = 1.772 seconds (58.560 ms))
+[ Info: Completed 6.696 minutes in 300 steps with Δt = 1.785 seconds (58.560 ms))
+[ Info: Completed 9.333 minutes in 400 steps with Δt = 1.780 seconds (58.560 ms))
+[ Info: Simulation is stopping after running for 8.007 minutes.
+[ Info: Simulation time 10 minutes equals or exceeds stop time 10 minutes.
+</code></pre><p>Next we load the data</p><pre><code class="language-julia hljs">using CairoMakie, JLD2
+
+u = FieldTimeSeries(&quot;single_flow.jld2&quot;, &quot;u&quot;)
+
+x = load(&quot;single_kelp.jld2&quot;, &quot;timeseries/x&quot;)
+y = load(&quot;single_kelp.jld2&quot;, &quot;timeseries/y&quot;)
+z = load(&quot;single_kelp.jld2&quot;, &quot;timeseries/z&quot;)
+
+indices = keys(x)
+indices = [parse(Int, idx) for idx in indices if idx != &quot;serialized&quot;]
+indices = sort(indices)
+
+times = u.times
+
+nothing</code></pre><p>Now we can animate the motion of the plant and attenuation of the flow</p><pre><code class="language-julia hljs">n = Observable(1)
+
+x_plt = @lift x[&quot;$(indices[$n])&quot;][1, :]
+y_plt = @lift y[&quot;$(indices[$n])&quot;][1, :]
+z_plt = @lift z[&quot;$(indices[$n])&quot;][1, :]
+
+u_vert = @lift view(u[$n], :, Int(grid.Ny / 2), :)
+
+u_surface = @lift view(u[$n], :, :, grid.Nz)
+
+fig = Figure(size = (1200, 400));
+
+title = @lift &quot;t = $(prettytime(u.times[$n]))&quot;
+
+ax = Axis(fig[1, 1], aspect = DataAspect(); title, ylabel = &quot;z (m)&quot;)
+
+hm = heatmap!(ax, u_vert, colormap = :lajolla)
+
+scatter!(ax, x_plt, z_plt, color = :black)
+
+ax = Axis(fig[2, 1], aspect = DataAspect(), xlabel = &quot;x (m)&quot;, ylabel = &quot;y (m)&quot;)
+
+hm = heatmap!(ax, u_surface, colormap = :lajolla)
+
+scatter!(ax, x_plt, y_plt, color = :black)
+
+record(fig, &quot;single.mp4&quot;, 1:length(times); framerate = 10) do i;
+    n[] = i
+end</code></pre><pre><code class="nohighlight hljs">&quot;single.mp4&quot;</code></pre><p><video src="../single.mp4" controls="true" title><a href="../single.mp4"></a></video> In this video the limitations of the simplified drag stencil can be seen (see previous versions for a more complex stencil). It is better suited to the forest application like in the <a href="../forest/#forest_example">forest example</a></p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../coming-soon/">« Quick start</a><a class="docs-footer-nextpage" href="../forest/">Forest »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.13.0 on <span class="colophon-date" title="Tuesday 1 July 2025 13:44">Tuesday 1 July 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

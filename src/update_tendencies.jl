@@ -38,8 +38,8 @@ end
     k1₂ = min(k₁, k₂)
     k2₂ = max(k₁, k₂)
 
-    vol1 = total_volume(grid, i₁, j₁, Val(k1₁), Val(k2₁))
-    vol2 = total_volume(grid, i₂, j₂, Val(k1₂), Val(k2₂))
+    vol1 = total_volume(grid, i₁, j₁, k1₁, k2₁)
+    vol2 = total_volume(grid, i₂, j₂, k1₂, k2₂)
 
     # first node
     for k in k1₁:k2₁
@@ -112,7 +112,7 @@ end
     k1 = min(kᵢ, kᵢ₋₁)
     k2 = max(kᵢ, kᵢ₋₁)
 
-    vol = total_volume(grid, iᵢ, jᵢ, Val(k1), Val(k2))
+    vol = total_volume(grid, iᵢ, jᵢ, k1, k2)
 
     for k in k1:k2
         scaling = sf / vol /  particles.kinematics.water_density

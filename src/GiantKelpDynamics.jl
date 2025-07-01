@@ -199,8 +199,8 @@ function GiantKelp(; grid,
     positions = threeD_array(number_kelp, number_nodes+1, arch; z0 = znodes(grid, Center(), Center(), Face())[1])
 
     CUDA.@allowscalar begin
-        positions.x .= holdfast_x
-        positions.y .= holdfast_y
+        positions.x .= on_architecture(arch, holdfast_x)
+        positions.y .= on_architecture(arch, holdfast_y)
     end
 
     velocities = threeD_array(number_kelp, number_nodes+1, arch)
@@ -256,8 +256,8 @@ adapt_structure(to, kelp::GiantKelp) = GiantKelp(adapt(to, kelp.scalefactor),
                                                  adapt(to, kelp.old_velocities),
                                                  adapt(to, kelp.old_accelerations),
                                                  adapt(to, kelp.drag_forces),
-                                                 stipe_radii,
-                                                 pneumatocyst_buoyancy,
+                                                 adapt(to, kelp.stipe_radii),
+                                                 adapt(to, kelp.pneumatocyst_buoyancy),
                                                  adapt(to, kelp.kinematics),
                                                  nothing,
                                                  adapt(to, kelp.max_Δt),
@@ -276,10 +276,14 @@ show(io::IO, particles::GiantKelp) = print(io, string(summary(particles), " \n",
                                                       " - y ∈ [$(minimum(particles.positions.y)), $(maximum(particles.positions.y))]\n",
                                                       " - z ∈ [$(minimum(particles.positions.z)), $(maximum(particles.positions.z))]"))
 
-@inline total_volume(grid, i, j, ::Val{k1}, ::Val{k2}) where {k1, k2} = sum(
-    ntuple(k0 -> volume(i, j, k0 + k1 - 1, grid, Center(), Center(), Center()), 
-           Val(k2 - k1 + 1))
-)
+@inline function total_volume(grid, i, j, k1, k2)
+    vol = zero(eltype(grid))
+    # I can't find a way todo this without looping because we can never know k1 and k2 at compile time
+    for k in k1:k2
+        vol += volume(i, j, k, grid, Center(), Center(), Center())
+    end
+    return vol
+end
 
 include("update_tendencies.jl")
 

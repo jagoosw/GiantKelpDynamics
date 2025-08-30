@@ -14,7 +14,6 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 NCDatasets = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
 OceanBioME = "a49af516-9db8-4be4-be45-1dad61c5a376"
 Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
-Oceanostics = "d0ccf422-c8fb-49b5-a76d-74acdde946ac"
 OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 
 [compat]
@@ -25,8 +24,7 @@ FFTW = "1.8.1"
 KernelAbstractions = "0.9.22"
 NCDatasets = "0.14.6"
 OceanBioME = "0.14"
-Oceananigans = "0.95.8, 0.96"
-Oceanostics = "0.15.1"
+Oceananigans = "0.95.8, 0.96, 0.97"
 OffsetArrays = "1.14.1"
 
 [extras]

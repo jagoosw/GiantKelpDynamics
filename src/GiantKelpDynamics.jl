@@ -32,7 +32,7 @@ import Oceananigans.Biogeochemistry: update_tendencies!
 import Oceananigans.Models.LagrangianParticleTracking: update_lagrangian_particle_properties!, _advect_particles!
 import Oceananigans.OutputWriters: fetch_output, convert_output
 
-struct GiantKelp{KP, FT, VT, MT, TM, TS, DT, TF, CD} <: AbstractBiogeochemicalParticles
+struct GiantKelp{KP, FT, VT, MT, TM, TS, DT, TF, CD, DF} <: AbstractBiogeochemicalParticles
     scalefactor :: VT
 
     #information about nodes

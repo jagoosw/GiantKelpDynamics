@@ -13,9 +13,19 @@ function update_tendencies!(bgc, particles::GiantKelp, model)
     ####
     update_tendencies_kernel! = _update_tendencies!(device(model.architecture), workgroup, worksize)
 
-    update_tendencies_kernel!(particles, Gᵘ, Gᵛ, Gʷ, tracer_tendencies, model.grid, model.tracers, values(particles.tracer_forcing)) 
+    set!(particles.drag.u, 0)
+    set!(particles.drag.v, 0)
+    set!(particles.drag.w, 0)
+
+    update_tendencies_kernel!(particles, particles.drag..., tracer_tendencies, model.grid, model.tracers, values(particles.tracer_forcing)) 
 
     synchronize(device(architecture(model)))
+
+    Gᵘ .+= particles.drag.u
+    Gᵛ .+= particles.drag.v
+    Gʷ .+= particles.drag.w
+
+    return nothing
 end
 
 @kernel function _update_tendencies!(particles::GiantKelp{<:UtterDennySpeed}, Gᵘ, Gᵛ, Gʷ, tracer_tendencies, grid, tracers, tracer_forcings)

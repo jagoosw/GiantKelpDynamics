@@ -58,6 +58,8 @@ pneumatocyst_buoyancy :: FT
      tracer_forcing :: TF
     custom_dynamics :: CD
 
+    drag :: DF
+
     function GiantKelp(scalefactor::VT,
                        positions::TM,
                        velocities::TM,
@@ -73,9 +75,10 @@ pneumatocyst_buoyancy :: FT
                        timestepper::TS,
                        max_Δt::DT,
                        tracer_forcing::TF,
-                       custom_dynamics::CD) where {FT, VT, MT, TM, KP, TS, DT, TF, CD}
+                       custom_dynamics::CD,
+                       drag::DF) where {FT, VT, MT, TM, KP, TS, DT, TF, CD, DF}
 
-        return new{KP, FT, VT, MT, TM, TS, DT, TF, CD}(scalefactor,
+        return new{KP, FT, VT, MT, TM, TS, DT, TF, CD, DF}(scalefactor,
                                                        positions,
                                                        velocities,
                                                        relaxed_lengths,
@@ -90,7 +93,8 @@ pneumatocyst_buoyancy :: FT
                                                        timestepper,
                                                        max_Δt,
                                                        tracer_forcing,
-                                                       custom_dynamics)
+                                                       custom_dynamics,
+                                                       drag)
     end
 end
 
@@ -224,6 +228,8 @@ function GiantKelp(; grid,
         CUDA.@allowscalar max_Δt[1] = Inf
     end
 
+    drag = VelocityFields(grid)
+
     return GiantKelp(scalefactor,
                      positions,
                      velocities,
@@ -239,7 +245,8 @@ function GiantKelp(; grid,
                      timestepper,
                      max_Δt,
                      tracer_forcing,
-                     custom_dynamics)
+                     custom_dynamics,
+                     drag)
 end
 
 threeD_array(d1, d2, arch; x0 = 0, y0 = 0, z0 = 0) = 
@@ -261,6 +268,7 @@ adapt_structure(to, kelp::GiantKelp) = GiantKelp(adapt(to, kelp.scalefactor),
                                                  adapt(to, kelp.kinematics),
                                                  nothing,
                                                  adapt(to, kelp.max_Δt),
+                                                 nothing,
                                                  nothing,
                                                  nothing)
 

@@ -117,8 +117,8 @@ end
     l⁰₂ = @inbounds relaxed_lengths[p, 2]
 
     #https://doi.org/10.1242/jeb.199.12.2645
-    mᵉ₁ = Vᵐ₁ * (1 + Cᵃ) * 20#50#0.774*0.297*l⁰₁^0.995#
-    mᵉ₂ = Vᵐ₂ * (1 + Cᵃ) * 20#50#0.774*0.297*l⁰₂^0.995#
+    mᵉ₁ = 0.774*0.297*l⁰₁^0.995 * (1 + Cᵃ)#Vᵐ₁ * (1 + Cᵃ) * 20#50#0.774*0.297*l⁰₁^0.995#
+    mᵉ₂ = 0.774*0.297*l⁰₂^0.995 * (1 + Cᵃ)#Vᵐ₂ * (1 + Cᵃ) * 20#50#0.774*0.297*l⁰₂^0.995#
 
     # we need ijk and this also reduces repetition of finding ijk
     i₀, j₀, k₀ = get_closest_ijk(grid, x⃗₀)

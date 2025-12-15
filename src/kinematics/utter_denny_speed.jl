@@ -48,7 +48,7 @@ function update_lagrangian_particle_properties!(particles::GiantKelp{<:UtterDenn
 
         synchronize(device(architecture(model)))
 
-        stage_Δt = min(0.1,#one(Δt)/10, #minimum(particles.max_Δt),
+        stage_Δt = min(minimum(particles.max_Δt)/2,#0.1,#one(Δt)/10, #
                        Δt - step_t)
 
         @info Δt, step_t, stage_Δt

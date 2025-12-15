@@ -51,7 +51,7 @@ function update_lagrangian_particle_properties!(particles::GiantKelp{<:UtterDenn
         stage_Δt = min(0.1,#one(Δt)/10, #minimum(particles.max_Δt),
                        Δt - step_t)
 
-        @info stage_Δt
+        @info Δt, step_t, stage_Δt
 
         if stage_Δt > Δt / 1e10
             step_kernel!(particles.accelerations, particles.old_accelerations, 

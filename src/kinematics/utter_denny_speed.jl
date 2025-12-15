@@ -113,8 +113,8 @@ end
     l⁰₂ = @inbounds relaxed_lengths[p, 2]
 
     #https://doi.org/10.1242/jeb.199.12.2645
-    mᵉ₁ = 0.774*0.297*l⁰₁^0.995#Vᵐ₁ * (1 + Cᵃ) * 20#50
-    mᵉ₂ = 0.774*0.297*l⁰₂^0.995#Vᵐ₂ * (1 + Cᵃ) * 20#50
+    mᵉ₁ = Vᵐ₁ * (1 + Cᵃ) * 20#50#0.774*0.297*l⁰₁^0.995#
+    mᵉ₂ = Vᵐ₂ * (1 + Cᵃ) * 20#50#0.774*0.297*l⁰₂^0.995#
 
     # we need ijk and this also reduces repetition of finding ijk
     i₀, j₀, k₀ = get_closest_ijk(grid, x⃗₀)
@@ -145,8 +145,8 @@ end
     Aˢ₁ = 2 * rˢ * l₁ * abs(sin(θ₁)) + π * rˢ * abs(cos(θ₁))
     Aˢ₂ = 2 * rˢ * l₂ * abs(sin(θ₂)) + π * rˢ * abs(cos(θ₂))
 
-    Fᴰ₁ = ρₒ/2 * (Cᵈˢ * Aˢ₁ + 0.0148 * Aᵇ₁) * sʳ₁^1.596 #(Cᵈˢ * Aˢ₁ + Cᵈᵇ * Aᵇ₁) * sʳ₁^2 
-    Fᴰ₂ = ρₒ/2 * (Cᵈˢ * Aˢ₂ + 0.0148 * Aᵇ₂) * sʳ₂^1.596 #(Cᵈˢ * Aˢ₂ + Cᵈᵇ * Aᵇ₂) * sʳ₂^2 
+    Fᴰ₁ = ρₒ/2 * (Cᵈˢ * Aˢ₁ + Cᵈᵇ * Aᵇ₁) * sʳ₁^2 #(Cᵈˢ * Aˢ₁ + 0.0148 * Aᵇ₁) * sʳ₁^1.596 #
+    Fᴰ₂ = ρₒ/2 * (Cᵈˢ * Aˢ₂ + Cᵈᵇ * Aᵇ₂) * sʳ₂^2 #(Cᵈˢ * Aˢ₂ + 0.0148 * Aᵇ₂) * sʳ₂^1.596 #
 
     add_components!(p, 2, accelerations, Fᴰ₁, (x = Uʳ₁.x / (sʳ₁+eps(0.0)), y = Uʳ₁.y / (sʳ₁+eps(0.0)), z = Uʳ₁.z / (sʳ₁+eps(0.0))))
     add_components!(p, 3, accelerations, Fᴰ₂, (x = Uʳ₂.x / (sʳ₂+eps(0.0)), y = Uʳ₂.y / (sʳ₂+eps(0.0)), z = Uʳ₂.z / (sʳ₂+eps(0.0))))

@@ -18,7 +18,7 @@ Sets up the kinematic model for giant kelp motion from [Utter1996](@citet) and [
   pneumatocyst_specific_buoyancy :: FT = 2.5 # https://doi.org/10.1242/jeb.199.12.2645
       gravitational_acceleration :: FT = 9.81
           stipe_drag_coefficient :: FT = 1.
-          blade_drag_coefficient :: FT = 0.87
+          blade_drag_coefficient :: FT = 0.0148#0.87# change from origional publication due to error in how tendancy scaling was calculated, but this results in the same drag (i.e. ηCd is the samd where η is the scaling factor)
           added_mass_coefficient :: FT = 3.
                damping_timescale :: FT = 5.
 end

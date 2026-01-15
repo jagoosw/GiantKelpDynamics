@@ -23,7 +23,7 @@ FFTW = "1.8.1"
 KernelAbstractions = "0.9.22"
 NCDatasets = "0.14.6"
 OceanBioME = "0.14, 0.15, 0.16"
-Oceananigans = "0.95.8, 0.96, 0.97, 0.98, 0.99, 0.100"
+Oceananigans = "0.95.8, 0.96, 0.97, 0.98, 0.99, 0.100, 0.101, 0.102, 0.103"
 OffsetArrays = "1.14.1"
 
 [extras]

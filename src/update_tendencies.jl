@@ -51,6 +51,8 @@ end
     vol1 = total_volume(grid, i₁, j₁, k1₁, k2₁)
     vol2 = total_volume(grid, i₂, j₂, k1₂, k2₂)
 
+    @info k₀, k₁, k₂, vol1, vol2
+
     # first node
     for k in k1₁:k2₁
         scaling = sf / vol1 /  particles.kinematics.water_density

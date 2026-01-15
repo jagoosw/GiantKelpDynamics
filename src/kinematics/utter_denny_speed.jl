@@ -169,8 +169,8 @@ end
     Fⁱ₁ = ρₒ * Vᵐ₁ * mag(Aʷ₁)
     Fⁱ₂ = ρₒ * Vᵐ₂ * mag(Aʷ₂)
 
-    #add_components!(p, 2, accelerations, Fⁱ₁, (x = Aʷ₁.x / (mag(Aʷ₁)+eps(0.0)), y = Aʷ₁.y / (mag(Aʷ₁)+eps(0.0)), z = Aʷ₁.z / (mag(Aʷ₁)+eps(0.0))))
-    #add_components!(p, 3, accelerations, Fⁱ₂, (x = Aʷ₂.x / (mag(Aʷ₂)+eps(0.0)), y = Aʷ₂.y / (mag(Aʷ₂)+eps(0.0)), z = Aʷ₂.z / (mag(Aʷ₂)+eps(0.0))))
+    add_components!(p, 2, accelerations, Fⁱ₁, (x = Aʷ₁.x / (mag(Aʷ₁)+eps(0.0)), y = Aʷ₁.y / (mag(Aʷ₁)+eps(0.0)), z = Aʷ₁.z / (mag(Aʷ₁)+eps(0.0))))
+    add_components!(p, 3, accelerations, Fⁱ₂, (x = Aʷ₂.x / (mag(Aʷ₂)+eps(0.0)), y = Aʷ₂.y / (mag(Aʷ₂)+eps(0.0)), z = Aʷ₂.z / (mag(Aʷ₂)+eps(0.0))))
     
     add_components!(p, 2, accelerations, ifelse(x⃗₁.z < 0, Fᵇ * l⁰₁ / (l⁰₁ + l⁰₂ + eps(0.0)), 0), (x = 0, y = 0, z = 1))
     add_components!(p, 3, accelerations, ifelse(x⃗₂.z < 0, Fᵇ * l⁰₂ / (l⁰₁ + l⁰₂ + eps(0.0)), 0), (x = 0, y = 0, z = 1))

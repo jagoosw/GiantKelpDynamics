@@ -22,7 +22,7 @@ CairoMakie = "0.12.18"
 FFTW = "1.8.1"
 KernelAbstractions = "0.9.22"
 NCDatasets = "0.14.6"
-OceanBioME = "0.14, 0.15"
+OceanBioME = "0.14, 0.15, 0.16"
 Oceananigans = "0.95.8, 0.96, 0.97, 0.98, 0.99, 0.100"
 OffsetArrays = "1.14.1"
 

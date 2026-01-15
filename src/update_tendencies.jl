@@ -49,7 +49,7 @@ end
     k2₂ = max(k₁, k₂)
 
     vol1 = total_volume(grid, i₁, j₁, k1₁, k2₁)
-    vol2 = total_volume(grid, i₂, j₂, k1₂, k2₂)
+    vol2 = total_volume(grid, i₂, j₂, k1₂, k2₂)*20
 
     @info k₀, k₁, k₂, vol1, vol2
 

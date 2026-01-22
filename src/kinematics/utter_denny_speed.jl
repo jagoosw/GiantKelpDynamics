@@ -21,6 +21,7 @@ Sets up the kinematic model for giant kelp motion from [Utter1996](@citet) and [
           blade_drag_coefficient :: FT = 0.0148#0.87# change from origional publication due to error in how tendancy scaling was calculated, but this results in the same drag (i.e. ηCd is the samd where η is the scaling factor)
           added_mass_coefficient :: FT = 3.
                damping_timescale :: FT = 5.
+               turn_on_timescale :: FT = 10minutes
 end
 
 function update_lagrangian_particle_properties!(particles::GiantKelp{<:UtterDennySpeed}, model, bgc, Δt)
@@ -44,7 +45,8 @@ function update_lagrangian_particle_properties!(particles::GiantKelp{<:UtterDenn
                            particles.accelerations, particles.drag_forces, 
                            model.velocities, water_accelerations,
                            particles.kinematics, model.grid,
-                           particles.max_Δt)
+                           particles.max_Δt,
+                           model.clock.time)
 
         synchronize(device(architecture(model)))
 
@@ -76,7 +78,8 @@ end
             accelerations, drag_forces, 
             water_velocities, water_accelerations,
             kinematics, grid::AbstractGrid{FT, TX, TY, TZ},
-            max_Δt) where {FT, TX, TY, TZ}
+            max_Δt,
+            t) where {FT, TX, TY, TZ}
 
     p = @index(Global)
 
@@ -91,6 +94,8 @@ end
     Cᵃ  = kinematics.added_mass_coefficient
     τ   = kinematics.damping_timescale
     Fᵇ  = kinematics.pneumatocyst_specific_buoyancy
+
+    τ_spinup = kinematics.turn_on_timescale
 
     rˢ = stipe_radii
 
@@ -149,8 +154,8 @@ end
     Aˢ₁ = 2 * rˢ * l₁ * abs(sin(θ₁)) + π * rˢ * abs(cos(θ₁))
     Aˢ₂ = 2 * rˢ * l₂ * abs(sin(θ₂)) + π * rˢ * abs(cos(θ₂))
 
-    Fᴰ₁ = ρₒ/2 * (Cᵈˢ * Aˢ₁ + Cᵈᵇ * Aᵇ₁) * sʳ₁^1.596 #(Cᵈˢ * Aˢ₁ + 0.0148 * Aᵇ₁) * sʳ₁^1.596 #
-    Fᴰ₂ = ρₒ/2 * (Cᵈˢ * Aˢ₂ + Cᵈᵇ * Aᵇ₂) * sʳ₂^1.596 #(Cᵈˢ * Aˢ₂ + 0.0148 * Aᵇ₂) * sʳ₂^1.596 #
+    Fᴰ₁ = ρₒ/2 * (Cᵈˢ * Aˢ₁ + Cᵈᵇ * Aᵇ₁) * sʳ₁^1.596 * (1 - exp(-t/τ_spinup)) #(Cᵈˢ * Aˢ₁ + 0.0148 * Aᵇ₁) * sʳ₁^1.596 #
+    Fᴰ₂ = ρₒ/2 * (Cᵈˢ * Aˢ₂ + Cᵈᵇ * Aᵇ₂) * sʳ₂^1.596 * (1 - exp(-t/τ_spinup))#(Cᵈˢ * Aˢ₂ + 0.0148 * Aᵇ₂) * sʳ₂^1.596 #
 
     add_components!(p, 2, accelerations, Fᴰ₁, (x = Uʳ₁.x / (sʳ₁+eps(0.0)), y = Uʳ₁.y / (sʳ₁+eps(0.0)), z = Uʳ₁.z / (sʳ₁+eps(0.0))))
     add_components!(p, 3, accelerations, Fᴰ₂, (x = Uʳ₂.x / (sʳ₂+eps(0.0)), y = Uʳ₂.y / (sʳ₂+eps(0.0)), z = Uʳ₂.z / (sʳ₂+eps(0.0))))

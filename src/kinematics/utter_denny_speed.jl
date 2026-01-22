@@ -1,3 +1,5 @@
+using Oceananigans.Units: minutes
+
 """
     UtterDennySpeed(; spring_constant = 1.91 * 10 ^ 7,
                  spring_exponent = 1.41,

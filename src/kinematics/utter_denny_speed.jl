@@ -23,7 +23,7 @@ Sets up the kinematic model for giant kelp motion from [Utter1996](@citet) and [
           blade_drag_coefficient :: FT = 0.0148#0.87# change from origional publication due to error in how tendancy scaling was calculated, but this results in the same drag (i.e. ηCd is the samd where η is the scaling factor)
           added_mass_coefficient :: FT = 3.
                damping_timescale :: FT = 5.
-               turn_on_timescale :: FT = 10minutes
+               turn_on_timescale :: FT = 1hour
 end
 
 function update_lagrangian_particle_properties!(particles::GiantKelp{<:UtterDennySpeed}, model, bgc, Δt)
@@ -179,8 +179,8 @@ end
     add_components!(p, 2, accelerations, Fⁱ₁, (x = Aʷ₁.x / (mag(Aʷ₁)+eps(0.0)), y = Aʷ₁.y / (mag(Aʷ₁)+eps(0.0)), z = Aʷ₁.z / (mag(Aʷ₁)+eps(0.0))))
     add_components!(p, 3, accelerations, Fⁱ₂, (x = Aʷ₂.x / (mag(Aʷ₂)+eps(0.0)), y = Aʷ₂.y / (mag(Aʷ₂)+eps(0.0)), z = Aʷ₂.z / (mag(Aʷ₂)+eps(0.0))))
     
-    add_components!(p, 2, accelerations, ifelse(x⃗₁.z < 0, Fᵇ * l⁰₁ / (l⁰₁ + l⁰₂ + eps(0.0)), 0), (x = 0, y = 0, z = 1))
-    add_components!(p, 3, accelerations, ifelse(x⃗₂.z < 0, Fᵇ * l⁰₂ / (l⁰₁ + l⁰₂ + eps(0.0)), 0), (x = 0, y = 0, z = 1))
+    add_components!(p, 2, accelerations, ifelse(x⃗₁.z <= 0, Fᵇ * l⁰₁ / (l⁰₁ + l⁰₂ + eps(0.0)), 0), (x = 0, y = 0, z = 1))
+    add_components!(p, 3, accelerations, ifelse(x⃗₂.z <= 0, Fᵇ * l⁰₂ / (l⁰₁ + l⁰₂ + eps(0.0)), 0), (x = 0, y = 0, z = 1))
 
     multiply_components!(p, 2, accelerations, 1/mᵉ₁)
     multiply_components!(p, 3, accelerations, 1/mᵉ₂)
@@ -199,5 +199,5 @@ end
     τₐ₂ = mᵉ₂ / abs(Fᴰ₂ / (sʳ₂ + eps(0.0)))
     τᵇ  = sqrt(0.1 / (abs(Fᵇ) / (mᵉ₁ + mᵉ₂)))
 
-    @inbounds max_Δt[p] = 0.5 * min(τₜ₁, τₜ₂, τₐ₁,  τₐ₂, τᵇ)
+    @inbounds max_Δt[p] = min(0.5 * min(τₜ₁, τₜ₂, τₐ₁,  τₐ₂, τᵇ), 1.1 * max_Δt[p]) # limit to 10% growth
 end

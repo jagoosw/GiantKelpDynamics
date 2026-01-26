@@ -68,3 +68,27 @@ end
 
     return nothing
 end
+
+struct VelocityVerlet end
+
+@kernel function step_nodes!(accelerations, old_accelerations, velocities, old_velocities, positions, ::VelocityVerlet, Δt)
+    p, n = @index(Global, NTuple)
+
+    n += 1
+
+    @inbounds begin
+        #dX = Δt * old_velocities + 0.5 * Δt^2 * old_accelerations
+        #dV = Δt / 2 * (accelerations + old_accelerations)
+
+        add_components!(p, n, positions, Δt, old_velocities)
+        add_components!(p, n, positions, Δt^2/2, old_accelerations)
+
+        add_components!(p, n, velocities, one(Δt)/2, old_accelerations)
+        add_components!(p, n, velocities, one(Δt)/2, accelerations)
+
+        copy_components!(p, n, old_velocities, velocities)
+        copy_components!(p, n, old_accelerations, accelerations)
+
+        positions.z[p, n] = ifelse(positions.z[p, n] > 0.0, zero(eltype(accelerations.x)), positions.z[p, n])
+    end
+end

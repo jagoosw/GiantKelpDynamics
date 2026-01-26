@@ -92,3 +92,20 @@ struct VelocityVerlet end
         positions.z[p, n] = ifelse(positions.z[p, n] > 0.0, zero(eltype(accelerations.x)), positions.z[p, n])
     end
 end
+
+@kernel function step_nodes!(accelerations, old_accelerations, velocities, old_velocities, positions, timestepper, Δt, ::Val{N}) where N
+    p = @index(Global)
+
+    @inbounds for n=2:N
+        add_components!(p, n, positions, Δt, old_velocities)
+        add_components!(p, n, positions, Δt^2/2, old_accelerations)
+
+        add_components!(p, n, velocities, one(Δt)/2, old_accelerations)
+        add_components!(p, n, velocities, one(Δt)/2, accelerations)
+
+        copy_components!(p, n, old_velocities, velocities)
+        copy_components!(p, n, old_accelerations, accelerations)
+
+        positions.z[p, n] = ifelse(positions.z[p, n] > 0.0, zero(eltype(accelerations.x)), positions.z[p, n])
+    end
+end

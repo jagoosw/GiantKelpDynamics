@@ -99,11 +99,11 @@ end
     p = @index(Global)
 
     @inbounds for n=2:N
-        add_components!(p, n, positions, Δt, old_velocities)
-        add_components!(p, n, positions, Δt^2/2, old_accelerations)
+        add_vector_components!(p, n, positions, Δt, old_velocities)
+        add_vector_components!(p, n, positions, Δt^2/2, old_accelerations)
 
-        add_components!(p, n, velocities, one(Δt)/2, old_accelerations)
-        add_components!(p, n, velocities, one(Δt)/2, accelerations)
+        add_vector_components!(p, n, velocities, one(Δt)/2, old_accelerations)
+        add_vector_components!(p, n, velocities, one(Δt)/2, accelerations)
 
         copy_components!(p, n, old_velocities, velocities)
         copy_components!(p, n, old_accelerations, accelerations)

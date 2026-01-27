@@ -110,11 +110,10 @@ function time_step_kelp!(timestepper::Newmarkβ, particles, model, bgc, Δt, ste
                       particles.positions, 
                       particles.velocities, 
                       particles.accelerations,
-                      particles.old_positions, 
                       particles.old_velocities, 
-                      particles.old_acceleration)
+                      particles.old_accelerations)
 
-    # we have positions = X* = X0, velocities = V* = V0, old_accelerations = An = A0, old_positions = -βΔt^2 An, old_velocities = -γΔtAn
+    # we have positions = X* = X0, velocities = V* = V0, old_accelerations = An = A0, old_velocities = An
 
     for _ in 1:timestepper.iterations
         kinematics_kernel!(particles.positions, 
@@ -134,9 +133,8 @@ function time_step_kelp!(timestepper::Newmarkβ, particles, model, bgc, Δt, ste
                           particles.positions, 
                           particles.velocities, 
                           particles.accelerations,
-                          particles.old_positions, 
                           particles.old_velocities, 
-                          particles.old_acceleration)
+                          particles.old_accelerations)
     end
 
     return Δt

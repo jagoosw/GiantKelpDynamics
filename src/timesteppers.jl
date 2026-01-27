@@ -76,7 +76,7 @@ end
     iterations :: IT = 3
 end
 
-@kernel function predictor_step!(ts::Newmarkβ, Δt, position, velocity, acceleration, old_position, old_velocity, old_acceleration)
+@kernel function predictor_step!(::Newmarkβ, Δt, position, velocity, acceleration, old_velocity, old_acceleration)
     p, n = @index(Global, NTuple)
     # follwing inital acceperation compoitation
 
@@ -90,14 +90,11 @@ end
 
     # old velocitys in -γΔt An and positions ...
     copy_components!(p, n, old_velocity, acceleration)
-    multiply_components!(p, n, old_velocity, -ts.γ * Δt)
 
-    copy_components!(p, n, old_position, acceleration)
-    multiply_components!(p, n, old_position, -ts.β * Δt^2)
     # so that positions are X*, velocitys are V*, and old_accelerations are An
 end
 
-@kernel function corrector_step!(ts::Newmarkβ, Δt, position, velocity, acceleration, old_position, old_velocity, old_acceleration)
+@kernel function corrector_step!(ts::Newmarkβ, Δt, position, velocity, acceleration, old_velocity, old_acceleration)
     p, n = @index(Global, NTuple)
     # acceleration is always Anew = A(x*, v*) so we set old acceleration to the new Ak
     multiply_components!(p, n, old_acceleration, 1-ts.ω)
@@ -105,8 +102,8 @@ end
 
     # corrector
     add_vector_components!(p, n, position, ts.β * Δt^2, acceleration)
-    add_vector_components!(p, n, position, 1, old_position) # - βΔt^2Aₙ
+    add_vector_components!(p, n, position, -ts.β * Δt^2, old_velocity) # - βΔt^2Aₙ
 
     add_vector_components!(p, n, velocity, ts.γ * Δt, acceleration)
-    add_vector_components!(p, n, velocity, 1, old_velocity) # -γΔtAₙ
+    add_vector_components!(p, n, velocity, -ts.γ * Δt, old_velocity) # -γΔtAₙ
 end

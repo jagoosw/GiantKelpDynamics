@@ -60,8 +60,8 @@ function set_1d!(ϕ, value)
 end
 
 # for output writer
-#=
-const PropertyArray = Union{Array, CuArray}
+
+const PropertyArray = Array#Union{Array, CuArray}
 
 fetch_output(output::Array, model) = output
 
@@ -73,7 +73,7 @@ function convert_output(output::CuArray, writer)
 
     return output_array
 end
-=#
+
 """
     NothingBGC()
 

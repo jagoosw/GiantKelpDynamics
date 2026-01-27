@@ -69,45 +69,44 @@ end
     return nothing
 end
 
-struct VelocityVerlet end
-
-@kernel function step_nodes!(accelerations, old_accelerations, velocities, old_velocities, positions, ::VelocityVerlet, Δt)
-    p, n = @index(Global, NTuple)
-
-    n += 1
-
-    @inbounds begin
-        #dX = Δt * old_velocities + 0.5 * Δt^2 * old_accelerations
-        #dV = Δt / 2 * (accelerations + old_accelerations)
-
-# oops need todo components
-
-        add_vector_components!(p, n, positions, Δt, old_velocities)
-        add_vector_components!(p, n, positions, Δt^2/2, old_accelerations)
-
-        add_vector_components!(p, n, velocities, one(Δt)/2, old_accelerations)
-        add_vector_components!(p, n, velocities, one(Δt)/2, accelerations)
-
-        copy_components!(p, n, old_velocities, velocities)
-        copy_components!(p, n, old_accelerations, accelerations)
-
-        positions.z[p, n] = ifelse(positions.z[p, n] > 0.0, zero(eltype(accelerations.x)), positions.z[p, n])
-    end
+@kwdef struct Newmarkβ{FT, IT}
+             γ :: FT = 0.5
+             β :: FT = 0.25
+             ω :: FT = 0.3
+    iterations :: IT = 3
 end
 
-@kernel function step_nodes!(accelerations, old_accelerations, velocities, old_velocities, positions, timestepper, Δt, ::Val{N}) where N
-    p = @index(Global)
+@kernel function predictor_step!(ts::Newmarkβ, Δt, position, velocity, acceleration, old_position, old_velocity, old_acceleration)
+    p, n = @index(Global, NTuple)
+    # follwing inital acceperation compoitation
 
-    @inbounds for n=2:N
-        add_vector_components!(p, n, positions, Δt, old_velocities)
-        add_vector_components!(p, n, positions, Δt^2/2, old_accelerations)
+    add_vector_components!(p, n, position, Δt, velocity)
+    add_vector_components!(p, n, position, Δt^2/2, acceleration)
 
-        add_vector_components!(p, n, velocities, one(Δt)/2, old_accelerations)
-        add_vector_components!(p, n, velocities, one(Δt)/2, accelerations)
+    add_vector_components!(p, n, velocity, Δt, acceleration)
 
-        copy_components!(p, n, old_velocities, velocities)
-        copy_components!(p, n, old_accelerations, accelerations)
+    # old_accelerations is Ak
+    copy_components!(p, n, old_acceleration, acceleration)
 
-        positions.z[p, n] = ifelse(positions.z[p, n] > 0.0, zero(eltype(accelerations.x)), positions.z[p, n])
-    end
+    # old velocitys in -γΔt An and positions ...
+    copy_components!(p, n, old_velocity, acceleration)
+    multiply_components!(p, n, old_velocity, -ts.γ * Δt)
+
+    copy_components!(p, n, old_position, acceleration)
+    multiply_components!(p, n, old_position, -ts.β * Δt^2)
+    # so that positions are X*, velocitys are V*, and old_accelerations are An
+end
+
+@kernel function corrector_step!(ts::Newmarkβ, Δt, position, velocity, acceleration, old_position, old_velocity, old_acceleration)
+    p, n = @index(Global, NTuple)
+    # acceleration is always Anew = A(x*, v*) so we set old acceleration to the new Ak
+    multiply_components!(p, n, old_acceleration, 1-ts.ω)
+    add_vector_components!(p, n, old_acceleration, ts.ω, acceleration)
+
+    # corrector
+    add_vector_components!(p, n, position, ts.β * Δt^2, acceleration)
+    add_vector_components!(p, n, position, 1, old_position) # - βΔt^2Aₙ
+
+    add_vector_components!(p, n, velocity, ts.γ * Δt, acceleration)
+    add_vector_components!(p, n, velocity, 1, old_velocity) # -γΔtAₙ
 end

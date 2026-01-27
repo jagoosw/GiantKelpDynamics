@@ -28,41 +28,11 @@ end
 
 function update_lagrangian_particle_properties!(particles::GiantKelp{<:UtterDennySpeed}, model, bgc, Δt)
     # this will need to be modified when we have biological properties to update
-    n_particles = size(particles, 1)
-    worksize = (n_particles, )
-    workgroup = (min(256, worksize[1]), )
-
-    kinematics_kernel! = particles.kinematics(device(model.architecture), workgroup, worksize)
-    step_kernel! = step_nodes!(device(model.architecture), workgroup, worksize)
-
-    water_accelerations = @inbounds model.timestepper.Gⁿ[(:u, :v, :w)]
 
     step_t = zero(eltype(particles.positions.x))
 
     while step_t < Δt
-        kinematics_kernel!(particles.positions, 
-                           particles.velocities,
-                           particles.stipe_radii,  
-                           particles.blade_areas, particles.relaxed_lengths, 
-                           particles.accelerations, particles.drag_forces, 
-                           model.velocities, water_accelerations,
-                           particles.kinematics, model.grid,
-                           particles.max_Δt,
-                           model.clock.time)
-
-        synchronize(device(architecture(model)))
-
-        stage_Δt = min(minimum(particles.max_Δt)/2,#0.1,#one(Δt)/10, #
-                       Δt - step_t)
-
-        if stage_Δt > Δt / 1e10
-            step_kernel!(particles.accelerations, particles.old_accelerations, 
-                        particles.velocities, particles.old_velocities,
-                        particles.positions, 
-                        particles.timestepper, stage_Δt, Val(3))
-
-            synchronize(device(architecture(model)))
-        end
+        stage_Δt = time_step_kelp!(particles.timestepper, particles, model, bgc, Δt, step_t)
 
         step_t += stage_Δt
     end
@@ -72,16 +42,115 @@ function update_lagrangian_particle_properties!(particles::GiantKelp{<:UtterDenn
     return nothing
 end
 
+# default for Euler
+function time_step_kelp!(timestepper, particles, model, bgc, Δt, step_t)
+    n_particles = size(particles, 1)
+    worksize = (n_particles, )
+    workgroup = (min(256, worksize[1]), )
+
+    kinematics_kernel! = particles.kinematics(device(model.architecture), workgroup, worksize)
+    step_kernel! = step_nodes!(device(model.architecture), workgroup, worksize)
+
+    water_accelerations = @inbounds model.timestepper.Gⁿ[(:u, :v, :w)]
+
+    kinematics_kernel!(particles.positions, 
+                       particles.velocities,
+                       particles.stipe_radii,  
+                       particles.blade_areas, particles.relaxed_lengths, 
+                       particles.accelerations, particles.drag_forces, 
+                       model.velocities, water_accelerations,
+                       particles.kinematics, model.grid,
+                       particles.max_Δt,
+                       model.clock.time)
+
+    stage_Δt = min(minimum(particles.max_Δt)/2,#0.1,#one(Δt)/10, #
+                  Δt - step_t)
+
+    if stage_Δt > Δt / 1e10
+        step_kernel!(particles.accelerations, particles.old_accelerations, 
+                     particles.velocities, particles.old_velocities,
+                     particles.positions, 
+                     particles.timestepper, stage_Δt, Val(3))
+
+        synchronize(device(architecture(model)))
+    end
+
+    return stage_Δt
+end
+
+# Newmark-β
+function time_step_kelp!(timestepper::Newmarkβ, particles, model, bgc, Δt, step_t)
+    # setup
+    n_particles = size(particles, 1)
+    worksize = (n_particles, )
+    workgroup = (min(256, worksize[1]), )
+
+    kinematics_kernel! = particles.kinematics(device(model.architecture), workgroup, worksize)
+    predictor_kernel! = predictor_step!(device(model.architecture), workgroup, worksize)
+    corrector_kernel! = corrector_step!(device(model.architecture), workgroup, worksize)
+
+    water_accelerations = @inbounds model.timestepper.Gⁿ[(:u, :v, :w)]
+
+    # Aₙ
+    kinematics_kernel!(particles.positions, 
+                       particles.velocities,
+                       particles.stipe_radii,  
+                       particles.blade_areas, particles.relaxed_lengths, 
+                       particles.accelerations, particles.drag_forces, 
+                       model.velocities, water_accelerations,
+                       particles.kinematics, model.grid,
+                       particles.max_Δt,
+                       model.clock.time)
+
+    # positions = Xn, velocities = Vn, accelerations = An
+
+    predictor_kernel!(timestepper, 
+                      Δt, 
+                      particles.positions, 
+                      particles.velocities, 
+                      particles.accelerations,
+                      particles.old_positions, 
+                      particles.old_velocities, 
+                      particles.old_acceleration)
+
+    # we have positions = X* = X0, velocities = V* = V0, old_accelerations = An = A0, old_positions = -βΔt^2 An, old_velocities = -γΔtAn
+
+    for _ in 1:timestepper.iterations
+        kinematics_kernel!(particles.positions, 
+                        particles.velocities,
+                        particles.stipe_radii,  
+                        particles.blade_areas, particles.relaxed_lengths, 
+                        particles.accelerations, particles.drag_forces, 
+                        model.velocities, water_accelerations,
+                        particles.kinematics, model.grid,
+                        particles.max_Δt,
+                        model.clock.time)
+
+        # now acceleration is Anew
+
+        corrector_kernel!(timestepper, 
+                          Δt,
+                          particles.positions, 
+                          particles.velocities, 
+                          particles.accelerations,
+                          particles.old_positions, 
+                          particles.old_velocities, 
+                          particles.old_acceleration)
+    end
+
+    return Δt
+end
+
 @kernel function (kinematics::UtterDennySpeed)(
-            positions, 
-            velocities, 
-            stipe_radii, 
-            blade_areas, relaxed_lengths, 
-            accelerations, drag_forces, 
-            water_velocities, water_accelerations,
-            kinematics, grid::AbstractGrid{FT, TX, TY, TZ},
-            max_Δt,
-            t) where {FT, TX, TY, TZ}
+                  positions, 
+                  velocities, 
+                  stipe_radii, 
+                  blade_areas, relaxed_lengths, 
+                  accelerations, drag_forces, 
+                  water_velocities, water_accelerations,
+                  kinematics, grid::AbstractGrid{FT, TX, TY, TZ},
+                  max_Δt,
+                  t) where {FT, TX, TY, TZ}
 
     p = @index(Global)
 
@@ -157,7 +226,7 @@ end
     Aˢ₂ = 2 * rˢ * l₂ * abs(sin(θ₂)) + π * rˢ * abs(cos(θ₂))
 
     Fᴰ₁ = ρₒ/2 * (Cᵈˢ * Aˢ₁ + Cᵈᵇ * Aᵇ₁) * sʳ₁^1.596 * (1 - exp(-t/τ_spinup)) #(Cᵈˢ * Aˢ₁ + 0.0148 * Aᵇ₁) * sʳ₁^1.596 #
-    Fᴰ₂ = ρₒ/2 * (Cᵈˢ * Aˢ₂ + Cᵈᵇ * Aᵇ₂) * sʳ₂^1.596 * (1 - exp(-t/τ_spinup))#(Cᵈˢ * Aˢ₂ + 0.0148 * Aᵇ₂) * sʳ₂^1.596 #
+    Fᴰ₂ = ρₒ/2 * (Cᵈˢ * Aˢ₂ + Cᵈᵇ * Aᵇ₂) * sʳ₂^1.596 * (1 - exp(-t/τ_spinup)) #(Cᵈˢ * Aˢ₂ + 0.0148 * Aᵇ₂) * sʳ₂^1.596 #
 
     add_components!(p, 2, accelerations, Fᴰ₁, (x = Uʳ₁.x / (sʳ₁+eps(0.0)), y = Uʳ₁.y / (sʳ₁+eps(0.0)), z = Uʳ₁.z / (sʳ₁+eps(0.0))))
     add_components!(p, 3, accelerations, Fᴰ₂, (x = Uʳ₂.x / (sʳ₂+eps(0.0)), y = Uʳ₂.y / (sʳ₂+eps(0.0)), z = Uʳ₂.z / (sʳ₂+eps(0.0))))

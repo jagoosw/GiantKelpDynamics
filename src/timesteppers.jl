@@ -80,11 +80,13 @@ struct VelocityVerlet end
         #dX = Δt * old_velocities + 0.5 * Δt^2 * old_accelerations
         #dV = Δt / 2 * (accelerations + old_accelerations)
 
-        add_components!(p, n, positions, Δt, old_velocities)
-        add_components!(p, n, positions, Δt^2/2, old_accelerations)
+# oops need todo components
 
-        add_components!(p, n, velocities, one(Δt)/2, old_accelerations)
-        add_components!(p, n, velocities, one(Δt)/2, accelerations)
+        add_vector_components!(p, n, positions, Δt, old_velocities)
+        add_vector_components!(p, n, positions, Δt^2/2, old_accelerations)
+
+        add_vector_components!(p, n, velocities, one(Δt)/2, old_accelerations)
+        add_vector_components!(p, n, velocities, one(Δt)/2, accelerations)
 
         copy_components!(p, n, old_velocities, velocities)
         copy_components!(p, n, old_accelerations, accelerations)

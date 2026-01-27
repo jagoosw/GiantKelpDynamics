@@ -53,9 +53,19 @@ end
 
 @inline function add_components!(p, n, X, F, unit_vector)
     @inbounds begin
-        X.x[p, n] += @inbounds F * unit_vector.x
-        X.y[p, n] += @inbounds F * unit_vector.y
-        X.z[p, n] += @inbounds F * unit_vector.z
+        X.x[p, n] += F * unit_vector.x
+        X.y[p, n] += F * unit_vector.y
+        X.z[p, n] += F * unit_vector.z
+    end
+
+    return nothing
+end
+
+@inline function add_vector_components!(p, n, X, F, unit_vector)
+    @inbounds begin
+        X.x[p, n] += F * unit_vector.x[p, n]
+        X.y[p, n] += F * unit_vector.y[p, n]
+        X.z[p, n] += F * unit_vector.z[p, n]
     end
 
     return nothing
@@ -63,9 +73,9 @@ end
 
 @inline function multiply_components!(p, n, X, F, unit_vector = (x = 1, y = 1, z = 1))
     @inbounds begin
-        X.x[p, n] *= @inbounds F * unit_vector.x
-        X.y[p, n] *= @inbounds F * unit_vector.y
-        X.z[p, n] *= @inbounds F * unit_vector.z
+        X.x[p, n] *= F * unit_vector.x
+        X.y[p, n] *= F * unit_vector.y
+        X.z[p, n] *= F * unit_vector.z
     end
 
     return nothing
@@ -73,9 +83,9 @@ end
 
 @inline function set_components!(p, n, X, F, unit_vector)
     @inbounds begin
-        X.x[p, n] = @inbounds F * unit_vector.x
-        X.y[p, n] = @inbounds F * unit_vector.y
-        X.z[p, n] = @inbounds F * unit_vector.z
+        X.x[p, n] = F * unit_vector.x
+        X.y[p, n] = F * unit_vector.y
+        X.z[p, n] = F * unit_vector.z
     end
 
     return nothing

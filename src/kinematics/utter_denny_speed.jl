@@ -1,4 +1,4 @@
-using Oceananigans.Units: minutes
+using Oceananigans.Units: minutes, hour
 
 """
     UtterDennySpeed(; spring_constant = 1.91 * 10 ^ 7,
@@ -29,6 +29,7 @@ end
 function update_lagrangian_particle_properties!(particles::GiantKelp{<:UtterDennySpeed}, model, bgc, Δt)
     # this will need to be modified when we have biological properties to update
 
+    # TODO: move this into the default logic
     step_t = zero(eltype(particles.positions.x))
 
     while step_t < Δt

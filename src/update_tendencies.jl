@@ -1,9 +1,28 @@
 # Speed
 function update_tendencies!(bgc, particles::GiantKelp, model)
+
+    Δt = model.clock.last_stage_Δt
+    Δt = ifelse(isfinite(Δt), Δt, zero(model.grid))
+    # TODO: move this into the default logic
+    step_t = zero(eltype(particles.positions.x))
+
+    while step_t < Δt
+        stage_Δt = time_step_kelp!(particles.timestepper, particles, model, bgc, Δt, step_t)
+
+        step_t += stage_Δt
+    end
+
+    particles.custom_dynamics(particles, model, bgc, Δt)
+
+
+
+
+
     Gᵘ, Gᵛ, Gʷ = @inbounds model.timestepper.Gⁿ[(:u, :v, :w)]
-
+u, v, w = model.velocities
     tracer_tendencies = @inbounds model.timestepper.Gⁿ[keys(particles.tracer_forcing)]
-
+    Δt = model.clock.last_stage_Δt
+    Δt = ifelse(isfinite(Δt), Δt, zero(u.grid))
     n_particles = size(particles, 1)
     worksize = n_particles
     workgroup = min(256, worksize)
@@ -17,18 +36,18 @@ function update_tendencies!(bgc, particles::GiantKelp, model)
     set!(particles.drag.v, 0)
     set!(particles.drag.w, 0)
 
-    update_tendencies_kernel!(particles, particles.drag..., tracer_tendencies, model.grid, model.tracers, values(particles.tracer_forcing)) 
+    update_tendencies_kernel!(particles, particles.drag..., tracer_tendencies, model.grid, model.tracers, values(particles.tracer_forcing), model.clock.time) 
 
-    synchronize(device(architecture(model)))
-
-    Gᵘ .+= particles.drag.u
-    Gᵛ .+= particles.drag.v
-    Gʷ .+= particles.drag.w
-
+#    Gᵘ .= particles.drag.u
+#    Gᵛ .= particles.drag.v
+#    Gʷ .= particles.drag.w
+    u .+= particles.drag.u * Δt
+    v .+= particles.drag.v * Δt
+    w .+= particles.drag.w * Δt
     return nothing
 end
 
-@kernel function _update_tendencies!(particles::GiantKelp{<:UtterDennySpeed}, Gᵘ, Gᵛ, Gʷ, tracer_tendencies, grid, tracers, tracer_forcings)
+@kernel function _update_tendencies!(particles::GiantKelp{<:UtterDennySpeed}, Gᵘ, Gᵛ, Gʷ, tracer_tendencies, grid, tracers, tracer_forcings, t)
     p = @index(Global)
 
     sf = particles.scalefactor[p]
@@ -41,7 +60,7 @@ end
     i₀, j₀, k₀ = get_closest_ijk(grid, x⃗₀)
     i₁, j₁, k₁ = get_closest_ijk(grid, x⃗₁)
     i₂, j₂, k₂ = get_closest_ijk(grid, x⃗₂)
-
+#@info i₀, j₀, k₀, i₁, j₁, k₁, i₂, j₂, k₂, "coupling", t
     k1₁ = min(k₀, k₁)
     k2₁ = max(k₀, k₁)
 

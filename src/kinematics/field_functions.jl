@@ -36,9 +36,9 @@ end
 end
 
 @inline function mean_water_velocity(i, j, k1, k2, water_velocities)
-    u = @inbounds mean_squared_field(water_velocities[1], i, j, k1, k2)
-    v = @inbounds mean_squared_field(water_velocities[2], i, j, k1, k2)
-    w = @inbounds mean_squared_field(water_velocities[3], i, j, k1, k2)
+    u = @inbounds (mean_squared_field(water_velocities[1], i, j, k1, k2) + mean_squared_field(water_velocities[1], i+1, j, k1, k2))/2
+    v = @inbounds (mean_squared_field(water_velocities[2], i, j, k1, k2) + mean_squared_field(water_velocities[2], i, j+1, k1, k2))/2
+    w = @inbounds (mean_squared_field(water_velocities[3], i, j, k1, k2) + mean_squared_field(water_velocities[3], i, j, k1+1, k2+1))/2
 
     return (x = u, y = v, z = w)
 end

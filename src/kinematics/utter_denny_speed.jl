@@ -28,7 +28,7 @@ end
 
 function update_lagrangian_particle_properties!(particles::GiantKelp{<:UtterDennySpeed}, model, bgc, Δt)
     # this will need to be modified when we have biological properties to update
-
+#=
     # TODO: move this into the default logic
     step_t = zero(eltype(particles.positions.x))
 
@@ -39,7 +39,7 @@ function update_lagrangian_particle_properties!(particles::GiantKelp{<:UtterDenn
     end
 
     particles.custom_dynamics(particles, model, bgc, Δt)
-
+=#
     return nothing
 end
 
@@ -148,6 +148,16 @@ function time_step_kelp!(timestepper::Newmarkβ, particles, model, bgc, Δt, ste
                           Val(3))
     end
 
+
+kinematics_kernel!(particles.positions,
+                           particles.velocities,
+                           particles.stipe_radii,
+                           particles.blade_areas, particles.relaxed_lengths,
+                           particles.accelerations, particles.drag_forces,
+                           model.velocities, water_accelerations,
+                           particles.kinematics, model.grid,
+                           particles.max_Δt,
+                           model.clock.time)
     return step_Δt
 end
 
@@ -210,7 +220,7 @@ end
     i₀, j₀, k₀ = get_closest_ijk(grid, x⃗₀)
     i₁, j₁, k₁ = get_closest_ijk(grid, x⃗₁)
     i₂, j₂, k₂ = get_closest_ijk(grid, x⃗₂)
-
+#@info i₀, j₀, k₀, i₁, j₁, k₁, i₂, j₂, k₂, t
     k1₁ = min(k₀, k₁)
     k2₁ = max(k₀, k₁)
 
@@ -222,7 +232,15 @@ end
 
     Uʳ₁ = @inbounds (x = Uʷ₁.x - u⃗₁.x, y = Uʷ₁.y - u⃗₁.y, z = Uʷ₁.z - u⃗₁.z)
     Uʳ₂ = @inbounds (x = Uʷ₂.x - u⃗₂.x, y = Uʷ₂.y - u⃗₂.y, z = Uʷ₂.z - u⃗₂.z)
+    Uʳ₁ = @inbounds (x = ifelse(Uʷ₁.x == u⃗₁.x, zero(Uʷ₁.x), Uʳ₁.x),
+                     y = ifelse(Uʷ₁.y == u⃗₁.y, zero(Uʷ₁.y), Uʳ₁.y),
+                     z = ifelse(Uʷ₁.z == u⃗₁.z, zero(Uʷ₁.z), Uʳ₁.z))
 
+    Uʳ₂ = @inbounds (x = ifelse(Uʷ₂.x == u⃗₂.x, zero(Uʷ₂.x), Uʳ₂.x),
+                     y = ifelse(Uʷ₂.y == u⃗₂.y, zero(Uʷ₂.y), Uʳ₂.y),
+                     z = ifelse(Uʷ₂.z == u⃗₂.z, zero(Uʷ₂.z), Uʳ₂.z))
+  #Uʳ₁ = Uʷ₁
+  #Uʳ₂ = Uʷ₂
     sʳ₁ = sqrt(Uʳ₁.x^2 + Uʳ₁.y^2 + Uʳ₁.z^2)
     sʳ₂ = sqrt(Uʳ₂.x^2 + Uʳ₂.y^2 + Uʳ₂.z^2)
 
@@ -238,8 +256,17 @@ end
     Fᴰ₁ = ρₒ/2 * (Cᵈˢ * Aˢ₁ + Cᵈᵇ * Aᵇ₁) * sʳ₁^1.596 * (1 - exp(-t/τ_spinup)) #(Cᵈˢ * Aˢ₁ + 0.0148 * Aᵇ₁) * sʳ₁^1.596 #
     Fᴰ₂ = ρₒ/2 * (Cᵈˢ * Aˢ₂ + Cᵈᵇ * Aᵇ₂) * sʳ₂^1.596 * (1 - exp(-t/τ_spinup)) #(Cᵈˢ * Aˢ₂ + 0.0148 * Aᵇ₂) * sʳ₂^1.596 #
 
-    add_components!(p, 2, accelerations, Fᴰ₁, (x = Uʳ₁.x / (sʳ₁+eps(0.0)), y = Uʳ₁.y / (sʳ₁+eps(0.0)), z = Uʳ₁.z / (sʳ₁+eps(0.0))))
-    add_components!(p, 3, accelerations, Fᴰ₂, (x = Uʳ₂.x / (sʳ₂+eps(0.0)), y = Uʳ₂.y / (sʳ₂+eps(0.0)), z = Uʳ₂.z / (sʳ₂+eps(0.0))))
+
+    Fᴰ₁′ = (x = ifelse(Uʷ₁.x == u⃗₁.x, zero(Uʷ₁.x), Uʳ₁.x / sʳ₁), 
+            y = ifelse(Uʷ₁.y == u⃗₁.y, zero(Uʷ₁.y), Uʳ₁.y / sʳ₁),
+            z = ifelse(Uʷ₁.z == u⃗₁.z, zero(Uʷ₁.z), Uʳ₁.z / sʳ₁))
+
+    Fᴰ₂′ = (x = ifelse(Uʷ₂.x == u⃗₂.x, zero(Uʷ₂.x), Uʳ₂.x / sʳ₂), 
+            y = ifelse(Uʷ₂.y == u⃗₂.y, zero(Uʷ₂.y), Uʳ₂.y / sʳ₂),
+            z = ifelse(Uʷ₂.z == u⃗₂.z, zero(Uʷ₂.z), Uʳ₂.z / sʳ₂))
+
+    add_components!(p, 2, accelerations, Fᴰ₁, Fᴰ₁′)
+    add_components!(p, 3, accelerations, Fᴰ₂, Fᴰ₂′)
 
     # Tension
     Aᶜ = π * rˢ ^ 2
@@ -267,8 +294,8 @@ end
     add_components!(p, 2, accelerations, - 1 / τ, u⃗₁)
     add_components!(p, 3, accelerations, - 1 / τ, u⃗₂)
 
-    set_components!(p, 2, drag_forces, Fᴰ₁, (x = Uʳ₁.x / (sʳ₁+eps(0.0)), y = Uʳ₁.y / (sʳ₁+eps(0.0)), z = Uʳ₁.z / (sʳ₁+eps(0.0))))
-    set_components!(p, 3, drag_forces, Fᴰ₂, (x = Uʳ₂.x / (sʳ₂+eps(0.0)), y = Uʳ₂.y / (sʳ₂+eps(0.0)), z = Uʳ₂.z / (sʳ₂+eps(0.0))))
+    set_components!(p, 2, drag_forces, Fᴰ₁, Fᴰ₁′)
+    set_components!(p, 3, drag_forces, Fᴰ₂, Fᴰ₂′)
 
     α = spring_exponent
 

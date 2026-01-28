@@ -81,6 +81,15 @@ end
 
 # Newmark-β
 function time_step_kelp!(timestepper::Newmarkβ, particles, model, bgc, Δt, step_t)
+    # estimaiton of reasonable step size
+    k = particles.kinematics.spring_constant
+    α = particles.kinematics.spring_exponent
+    m = 5 # could be bigger could be smaller, todo: should make a function for this
+    Ac = π * 0.004^2
+    l₀ = minimum(particles.relaxed_lengths)
+    Δt_stable = 1 / sqrt(k * Ac * α / (l₀^α * m))
+    step_Δt = min(Δt, Δt_stable)
+
     # setup
     n_particles = size(particles, 1)
     worksize = (n_particles, )
@@ -106,7 +115,7 @@ function time_step_kelp!(timestepper::Newmarkβ, particles, model, bgc, Δt, ste
     # positions = Xn, velocities = Vn, accelerations = An
 
     predictor_kernel!(timestepper, 
-                      Δt, 
+                      step_Δt, 
                       particles.positions, 
                       particles.velocities, 
                       particles.accelerations,
@@ -118,19 +127,19 @@ function time_step_kelp!(timestepper::Newmarkβ, particles, model, bgc, Δt, ste
 
     for _ in 1:timestepper.iterations
         kinematics_kernel!(particles.positions, 
-                        particles.velocities,
-                        particles.stipe_radii,  
-                        particles.blade_areas, particles.relaxed_lengths, 
-                        particles.accelerations, particles.drag_forces, 
-                        model.velocities, water_accelerations,
-                        particles.kinematics, model.grid,
-                        particles.max_Δt,
-                        model.clock.time)
+                           particles.velocities,
+                           particles.stipe_radii,  
+                           particles.blade_areas, particles.relaxed_lengths, 
+                           particles.accelerations, particles.drag_forces, 
+                           model.velocities, water_accelerations,
+                           particles.kinematics, model.grid,
+                           particles.max_Δt,
+                           model.clock.time)
 
         # now acceleration is Anew
 
         corrector_kernel!(timestepper, 
-                          Δt,
+                          step_Δt,
                           particles.positions, 
                           particles.velocities, 
                           particles.accelerations,
@@ -139,7 +148,7 @@ function time_step_kelp!(timestepper::Newmarkβ, particles, model, bgc, Δt, ste
                           Val(3))
     end
 
-    return Δt
+    return step_Δt
 end
 
 @kernel function (kinematics::UtterDennySpeed)(

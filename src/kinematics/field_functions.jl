@@ -6,7 +6,7 @@ using Oceananigans.Grids: XYZRegularRG, xspacings, yspacings, zspacings, topolog
         v = @inbounds velocity[i, j, k]
         res += v * abs(v)
     end
-    return sign(res) * sqrt(abs(res)) / (k2 - k1 + 1)
+    return sign(res) * sqrt(abs(res) / (k2 - k1 + 1))
 end
 
 @inline function mean_field(velocity, i::Int, j::Int, k1::Int, k2::Int)

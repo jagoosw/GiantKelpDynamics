@@ -83,6 +83,7 @@ end
     @inbounds for n in 2:N
         add_vector_components!(p, n, position, Δt, velocity)
         add_vector_components!(p, n, position, Δt^2/2, acceleration)
+        position.z[p, n] = ifelse(position.z[p, n] > 0.0, zero(eltype(accelerations.x)), position.z[p, n])
 
         add_vector_components!(p, n, velocity, Δt, acceleration)
 
@@ -105,11 +106,12 @@ end
         add_vector_components!(p, n, old_acceleration, ts.ω, acceleration)
 
         # corrector
-        add_vector_components!(p, n, position, ts.β * Δt^2, acceleration)
+        add_vector_components!(p, n, position, ts.β * Δt^2, old_acceleration)
         add_vector_components!(p, n, position, -ts.β * Δt^2, old_velocity) # - βΔt^2Aₙ
 
-        add_vector_components!(p, n, velocity, ts.γ * Δt, acceleration)
+        add_vector_components!(p, n, velocity, ts.γ * Δt, old_acceleration)
         add_vector_components!(p, n, velocity, -ts.γ * Δt, old_velocity) # -γΔtAₙ
+
+        position.z[p, n] = ifelse(position.z[p, n] > 0.0, zero(eltype(accelerations.x)), position.z[p, n])
     end
-    
 end

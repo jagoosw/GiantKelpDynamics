@@ -81,16 +81,16 @@ end
 
 # Newmark-β
 function time_step_kelp!(timestepper::Newmarkβ, particles, model, bgc, Δt, step_t)
-    #=
+    
     # estimaiton of reasonable step size
     k = particles.kinematics.spring_constant
     α = particles.kinematics.spring_exponent
     m = 5 # could be bigger could be smaller, todo: should make a function for this
     Ac = π * 0.004^2
     l₀ = minimum(particles.relaxed_lengths)
-    Δt_stable = Inf#3 / sqrt(k * Ac * α / (l₀^α * m))
-    =#
-    step_Δt = Δt#min(Δt, Δt_stable)
+    Δt_stable = 3 / sqrt(k * Ac * α / (l₀^α * m))
+    
+    step_Δt = min(Δt, Δt_stable)
 
     # setup
     n_particles = size(particles, 1)

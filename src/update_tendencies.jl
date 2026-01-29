@@ -74,9 +74,12 @@ end
     for k in k1₁:k2₁
         scaling = sf / vol1 /  particles.kinematics.water_density
 
-        @inbounds atomic_add!(Gᵘ, i₁, j₁, k, - particles.drag_forces.x[p, 2] * scaling)
-        @inbounds atomic_add!(Gᵛ, i₁, j₁, k, - particles.drag_forces.y[p, 2] * scaling)
+        @inbounds atomic_add!(Gᵘ, i₁, j₁, k, - particles.drag_forces.x[p, 2] * scaling/2)
+        @inbounds atomic_add!(Gᵘ, i₁+1, j₁, k, - particles.drag_forces.x[p, 2] * scaling/2)
+        @inbounds atomic_add!(Gᵛ, i₁, j₁, k, - particles.drag_forces.y[p, 2] * scaling/2)
+        @inbounds atomic_add!(Gᵛ, i₁, j₁+1, k, - particles.drag_forces.y[p, 2] * scaling/2)
         @inbounds atomic_add!(Gʷ, i₁, j₁, k, - particles.drag_forces.z[p, 2] * scaling)
+        @inbounds atomic_add!(Gʷ, i₁, j₁, k+1, - particles.drag_forces.z[p, 2] * scaling/2)
 
         for (tracer_idx, forcing) in enumerate(tracer_forcings)
             tracer_tendency = @inbounds tracer_tendencies[tracer_idx]
@@ -90,9 +93,12 @@ end
     for k in k1₂:k2₂
         scaling = sf / vol2 /  particles.kinematics.water_density
 
-        @inbounds atomic_add!(Gᵘ, i₂, j₂, k, - particles.drag_forces.x[p, 3] * scaling)
-        @inbounds atomic_add!(Gᵛ, i₂, j₂, k, - particles.drag_forces.y[p, 3] * scaling)
+        @inbounds atomic_add!(Gᵘ, i₂, j₂, k, - particles.drag_forces.x[p, 3] * scaling/2)
+        @inbounds atomic_add!(Gᵘ, i₂+1, j₂, k, - particles.drag_forces.x[p, 3] * scaling/2)
+        @inbounds atomic_add!(Gᵛ, i₂, j₂, k, - particles.drag_forces.y[p, 3] * scaling/2)
+        @inbounds atomic_add!(Gᵛ, i₂, j₂+1, k, - particles.drag_forces.y[p, 3] * scaling/2)
         @inbounds atomic_add!(Gʷ, i₂, j₂, k, - particles.drag_forces.z[p, 3] * scaling)
+        @inbounds atomic_add!(Gʷ, i₂, j₂, k+1, - particles.drag_forces.z[p, 3] * scaling/2)
 
         for (tracer_idx, forcing) in enumerate(tracer_forcings)
             tracer_tendency = @inbounds tracer_tendencies[tracer_idx]

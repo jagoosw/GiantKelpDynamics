@@ -87,7 +87,7 @@ function time_step_kelp!(timestepper::Newmarkβ, particles, model, bgc, Δt, ste
     m = 5 # could be bigger could be smaller, todo: should make a function for this
     Ac = π * 0.004^2
     l₀ = minimum(particles.relaxed_lengths)
-    Δt_stable = 1 / sqrt(k * Ac * α / (l₀^α * m))
+    Δt_stable = Inf#3 / sqrt(k * Ac * α / (l₀^α * m))
     step_Δt = min(Δt, Δt_stable)
 
     # setup

@@ -81,6 +81,7 @@ end
 
 # Newmark-β
 function time_step_kelp!(timestepper::Newmarkβ, particles, model, bgc, Δt, step_t)
+    #=
     # estimaiton of reasonable step size
     k = particles.kinematics.spring_constant
     α = particles.kinematics.spring_exponent
@@ -88,7 +89,8 @@ function time_step_kelp!(timestepper::Newmarkβ, particles, model, bgc, Δt, ste
     Ac = π * 0.004^2
     l₀ = minimum(particles.relaxed_lengths)
     Δt_stable = Inf#3 / sqrt(k * Ac * α / (l₀^α * m))
-    step_Δt = min(Δt, Δt_stable)
+    =#
+    step_Δt = Δt#min(Δt, Δt_stable)
 
     # setup
     n_particles = size(particles, 1)
@@ -220,7 +222,7 @@ end
     i₀, j₀, k₀ = get_closest_ijk(grid, x⃗₀)
     i₁, j₁, k₁ = get_closest_ijk(grid, x⃗₁)
     i₂, j₂, k₂ = get_closest_ijk(grid, x⃗₂)
-#@info i₀, j₀, k₀, i₁, j₁, k₁, i₂, j₂, k₂, t
+
     k1₁ = min(k₀, k₁)
     k2₁ = max(k₀, k₁)
 
@@ -239,8 +241,7 @@ end
     Uʳ₂ = @inbounds (x = ifelse(Uʷ₂.x == u⃗₂.x, zero(Uʷ₂.x), Uʳ₂.x),
                      y = ifelse(Uʷ₂.y == u⃗₂.y, zero(Uʷ₂.y), Uʳ₂.y),
                      z = ifelse(Uʷ₂.z == u⃗₂.z, zero(Uʷ₂.z), Uʳ₂.z))
-  #Uʳ₁ = Uʷ₁
-  #Uʳ₂ = Uʷ₂
+ 
     sʳ₁ = sqrt(Uʳ₁.x^2 + Uʳ₁.y^2 + Uʳ₁.z^2)
     sʳ₂ = sqrt(Uʳ₂.x^2 + Uʳ₂.y^2 + Uʳ₂.z^2)
 
@@ -296,7 +297,7 @@ end
 
     set_components!(p, 2, drag_forces, Fᴰ₁, Fᴰ₁′)
     set_components!(p, 3, drag_forces, Fᴰ₂, Fᴰ₂′)
-
+#=
     α = spring_exponent
 
     τₜ₁ = ifelse(T₀₁ == 0, Inf, sqrt(mᵉ₁ / T₀₁ / (max(l₁, l⁰₁) * α - l⁰₁) * l₁ * l⁰₁))
@@ -305,5 +306,5 @@ end
     τₐ₂ = mᵉ₂ / abs(Fᴰ₂ / (sʳ₂ + eps(0.0)))
     τᵇ  = sqrt(0.1 / (abs(Fᵇ) / (mᵉ₁ + mᵉ₂)))
 
-    @inbounds max_Δt[p] = min(0.5 * min(τₜ₁, τₜ₂, τₐ₁,  τₐ₂, τᵇ), 1.1 * max_Δt[p]) # limit to 10% growth
+    @inbounds max_Δt[p] = min(0.5 * min(τₜ₁, τₜ₂, τₐ₁,  τₐ₂, τᵇ), 1.1 * max_Δt[p]) # limit to 10% growth=#
 end

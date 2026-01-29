@@ -15,11 +15,9 @@ function update_tendencies!(bgc, particles::GiantKelp, model)
     particles.custom_dynamics(particles, model, bgc, Δt)
 
 
-
-
-
     Gᵘ, Gᵛ, Gʷ = @inbounds model.timestepper.Gⁿ[(:u, :v, :w)]
-u, v, w = model.velocities
+    u, v, w = model.velocities
+    
     tracer_tendencies = @inbounds model.timestepper.Gⁿ[keys(particles.tracer_forcing)]
     Δt = model.clock.last_stage_Δt
     Δt = ifelse(isfinite(Δt), Δt, zero(u.grid))
@@ -60,7 +58,7 @@ end
     i₀, j₀, k₀ = get_closest_ijk(grid, x⃗₀)
     i₁, j₁, k₁ = get_closest_ijk(grid, x⃗₁)
     i₂, j₂, k₂ = get_closest_ijk(grid, x⃗₂)
-#@info i₀, j₀, k₀, i₁, j₁, k₁, i₂, j₂, k₂, "coupling", t
+
     k1₁ = min(k₀, k₁)
     k2₁ = max(k₀, k₁)
 

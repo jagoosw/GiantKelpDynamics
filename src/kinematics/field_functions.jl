@@ -6,7 +6,7 @@ using Oceananigans.Grids: XYZRegularRG, xspacings, yspacings, zspacings, topolog
         v = @inbounds velocity[i, j, k]
         res += v * abs(v)
     end
-    return sign(res) * sqrt(abs(res)) / (k2 - k1 + 1)
+    return sign(res) * sqrt(abs(res) / (k2 - k1 + 1))
 end
 
 @inline function mean_field(velocity, i::Int, j::Int, k1::Int, k2::Int)
@@ -36,9 +36,9 @@ end
 end
 
 @inline function mean_water_velocity(i, j, k1, k2, water_velocities)
-    u = @inbounds mean_squared_field(water_velocities[1], i, j, k1, k2)
-    v = @inbounds mean_squared_field(water_velocities[2], i, j, k1, k2)
-    w = @inbounds mean_squared_field(water_velocities[3], i, j, k1, k2)
+    u = @inbounds (mean_squared_field(water_velocities[1], i, j, k1, k2) + mean_squared_field(water_velocities[1], i+1, j, k1, k2))/2
+    v = @inbounds (mean_squared_field(water_velocities[2], i, j, k1, k2) + mean_squared_field(water_velocities[2], i, j+1, k1, k2))/2
+    w = @inbounds (mean_squared_field(water_velocities[3], i, j, k1, k2) + mean_squared_field(water_velocities[3], i, j, k1+1, k2+1))/2
 
     return (x = u, y = v, z = w)
 end
@@ -53,9 +53,19 @@ end
 
 @inline function add_components!(p, n, X, F, unit_vector)
     @inbounds begin
-        X.x[p, n] += @inbounds F * unit_vector.x
-        X.y[p, n] += @inbounds F * unit_vector.y
-        X.z[p, n] += @inbounds F * unit_vector.z
+        X.x[p, n] += F * unit_vector.x
+        X.y[p, n] += F * unit_vector.y
+        X.z[p, n] += F * unit_vector.z
+    end
+
+    return nothing
+end
+
+@inline function add_vector_components!(p, n, X, F, unit_vector)
+    @inbounds begin
+        X.x[p, n] += F * unit_vector.x[p, n]
+        X.y[p, n] += F * unit_vector.y[p, n]
+        X.z[p, n] += F * unit_vector.z[p, n]
     end
 
     return nothing
@@ -63,9 +73,9 @@ end
 
 @inline function multiply_components!(p, n, X, F, unit_vector = (x = 1, y = 1, z = 1))
     @inbounds begin
-        X.x[p, n] *= @inbounds F * unit_vector.x
-        X.y[p, n] *= @inbounds F * unit_vector.y
-        X.z[p, n] *= @inbounds F * unit_vector.z
+        X.x[p, n] *= F * unit_vector.x
+        X.y[p, n] *= F * unit_vector.y
+        X.z[p, n] *= F * unit_vector.z
     end
 
     return nothing
@@ -73,9 +83,9 @@ end
 
 @inline function set_components!(p, n, X, F, unit_vector)
     @inbounds begin
-        X.x[p, n] = @inbounds F * unit_vector.x
-        X.y[p, n] = @inbounds F * unit_vector.y
-        X.z[p, n] = @inbounds F * unit_vector.z
+        X.x[p, n] = F * unit_vector.x
+        X.y[p, n] = F * unit_vector.y
+        X.z[p, n] = F * unit_vector.z
     end
 
     return nothing

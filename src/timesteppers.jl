@@ -68,3 +68,50 @@ end
 
     return nothing
 end
+
+@kwdef struct Newmarkβ{FT, IT}
+             γ :: FT = 0.5
+             β :: FT = 0.25
+             ω :: FT = 0.3
+    iterations :: IT = 3
+end
+
+@kernel function predictor_step!(::Newmarkβ, Δt, position, velocity, acceleration, old_velocity, old_acceleration, ::Val{N}) where N
+    p = @index(Global)
+    # follwing inital acceperation compoitation
+
+    @inbounds for n in 2:N
+        add_vector_components!(p, n, position, Δt, velocity)
+        add_vector_components!(p, n, position, Δt^2/2, acceleration)
+        position.z[p, n] = ifelse(position.z[p, n] > 0.0, zero(eltype(acceleration.x)), position.z[p, n])
+
+        add_vector_components!(p, n, velocity, Δt, acceleration)
+
+        # old_accelerations is Ak
+        copy_components!(p, n, old_acceleration, acceleration)
+
+        # old velocitys in -γΔt An and positions ...
+        copy_components!(p, n, old_velocity, acceleration)
+    end
+
+    # so that positions are X*, velocitys are V*, and old_accelerations are An
+end
+
+@kernel function corrector_step!(ts::Newmarkβ, Δt, position, velocity, acceleration, old_velocity, old_acceleration, ::Val{N}) where N
+    p = @index(Global)
+    # acceleration is always Anew = A(x*, v*) so we set old acceleration to the new Ak
+
+    @inbounds for n in 2:N
+        multiply_components!(p, n, old_acceleration, 1-ts.ω)
+        add_vector_components!(p, n, old_acceleration, ts.ω, acceleration)
+
+        # corrector
+        add_vector_components!(p, n, position, ts.β * Δt^2, old_acceleration)
+        add_vector_components!(p, n, position, -ts.β * Δt^2, old_velocity) # - βΔt^2Aₙ
+
+        add_vector_components!(p, n, velocity, ts.γ * Δt, old_acceleration)
+        add_vector_components!(p, n, velocity, -ts.γ * Δt, old_velocity) # -γΔtAₙ
+
+        position.z[p, n] = ifelse(position.z[p, n] > 0.0, zero(eltype(acceleration.x)), position.z[p, n])
+    end   
+end

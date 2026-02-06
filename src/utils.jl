@@ -61,19 +61,19 @@ end
 
 # for output writer
 
-const PropertyArray = Union{Array, CuArray}
+#const PropertyArray = Union{Array, CuArray}
 
 fetch_output(output::Array, model) = output
 
 fetch_output(output::CuArray, model) = on_architecture(CPU(), output)
-
+#=
 function convert_output(output::CuArray, writer)
     output_array = writer.array_type(undef, size(output)...)
     copyto!(output_array, output)
 
     return output_array
 end
-
+=#
 """
     NothingBGC()
 

@@ -32,7 +32,7 @@ import Oceananigans.Biogeochemistry: update_tendencies!
 import Oceananigans.Models.LagrangianParticleTracking: update_lagrangian_particle_properties!, _advect_particles!
 import Oceananigans.OutputWriters: fetch_output, convert_output
 
-struct GiantKelp{KP, FT, VT, MT, TM, TS, DT, TF, CD} <: AbstractBiogeochemicalParticles
+struct GiantKelp{KP, FT, VT, MT, TM, TS, DT, TF, CD, DF} <: AbstractBiogeochemicalParticles
     scalefactor :: VT
 
     #information about nodes
@@ -58,6 +58,8 @@ pneumatocyst_buoyancy :: FT
      tracer_forcing :: TF
     custom_dynamics :: CD
 
+    drag :: DF
+
     function GiantKelp(scalefactor::VT,
                        positions::TM,
                        velocities::TM,
@@ -73,9 +75,10 @@ pneumatocyst_buoyancy :: FT
                        timestepper::TS,
                        max_Δt::DT,
                        tracer_forcing::TF,
-                       custom_dynamics::CD) where {FT, VT, MT, TM, KP, TS, DT, TF, CD}
+                       custom_dynamics::CD,
+                       drag::DF) where {FT, VT, MT, TM, KP, TS, DT, TF, CD, DF}
 
-        return new{KP, FT, VT, MT, TM, TS, DT, TF, CD}(scalefactor,
+        return new{KP, FT, VT, MT, TM, TS, DT, TF, CD, DF}(scalefactor,
                                                        positions,
                                                        velocities,
                                                        relaxed_lengths,
@@ -90,7 +93,8 @@ pneumatocyst_buoyancy :: FT
                                                        timestepper,
                                                        max_Δt,
                                                        tracer_forcing,
-                                                       custom_dynamics)
+                                                       custom_dynamics,
+                                                       drag)
     end
 end
 
@@ -199,8 +203,8 @@ function GiantKelp(; grid,
     positions = threeD_array(number_kelp, number_nodes+1, arch; z0 = znodes(grid, Center(), Center(), Face())[1])
 
     CUDA.@allowscalar begin
-        positions.x .= holdfast_x
-        positions.y .= holdfast_y
+        positions.x .= on_architecture(arch, holdfast_x)
+        positions.y .= on_architecture(arch, holdfast_y)
     end
 
     velocities = threeD_array(number_kelp, number_nodes+1, arch)
@@ -224,6 +228,8 @@ function GiantKelp(; grid,
         CUDA.@allowscalar max_Δt[1] = Inf
     end
 
+    drag = VelocityFields(grid)
+
     return GiantKelp(scalefactor,
                      positions,
                      velocities,
@@ -239,7 +245,8 @@ function GiantKelp(; grid,
                      timestepper,
                      max_Δt,
                      tracer_forcing,
-                     custom_dynamics)
+                     custom_dynamics,
+                     drag)
 end
 
 threeD_array(d1, d2, arch; x0 = 0, y0 = 0, z0 = 0) = 
@@ -256,11 +263,12 @@ adapt_structure(to, kelp::GiantKelp) = GiantKelp(adapt(to, kelp.scalefactor),
                                                  adapt(to, kelp.old_velocities),
                                                  adapt(to, kelp.old_accelerations),
                                                  adapt(to, kelp.drag_forces),
-                                                 stipe_radii,
-                                                 pneumatocyst_buoyancy,
+                                                 adapt(to, kelp.stipe_radii),
+                                                 adapt(to, kelp.pneumatocyst_buoyancy),
                                                  adapt(to, kelp.kinematics),
                                                  nothing,
                                                  adapt(to, kelp.max_Δt),
+                                                 nothing,
                                                  nothing,
                                                  nothing)
 
@@ -276,10 +284,14 @@ show(io::IO, particles::GiantKelp) = print(io, string(summary(particles), " \n",
                                                       " - y ∈ [$(minimum(particles.positions.y)), $(maximum(particles.positions.y))]\n",
                                                       " - z ∈ [$(minimum(particles.positions.z)), $(maximum(particles.positions.z))]"))
 
-@inline total_volume(grid, i, j, ::Val{k1}, ::Val{k2}) where {k1, k2} = sum(
-    ntuple(k0 -> volume(i, j, k0 + k1 - 1, grid, Center(), Center(), Center()), 
-           Val(k2 - k1 + 1))
-)
+@inline function total_volume(grid, i, j, k1, k2)
+    vol = zero(eltype(grid))
+    # I can't find a way todo this without looping because we can never know k1 and k2 at compile time
+    for k in k1:k2
+        vol += volume(i, j, k, grid, Center(), Center(), Center())
+    end
+    return vol
+end
 
 include("update_tendencies.jl")
 

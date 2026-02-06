@@ -1,9 +1,26 @@
 # Speed
 function update_tendencies!(bgc, particles::GiantKelp, model)
+
+    Δt = model.clock.last_stage_Δt
+    Δt = ifelse(isfinite(Δt), Δt, zero(model.grid))
+    # TODO: move this into the default logic
+    step_t = zero(eltype(particles.positions.x))
+
+    while step_t < Δt
+        stage_Δt = time_step_kelp!(particles.timestepper, particles, model, bgc, Δt, step_t)
+
+        step_t += stage_Δt
+    end
+
+    particles.custom_dynamics(particles, model, bgc, Δt)
+
+
     Gᵘ, Gᵛ, Gʷ = @inbounds model.timestepper.Gⁿ[(:u, :v, :w)]
-
+    u, v, w = model.velocities
+    
     tracer_tendencies = @inbounds model.timestepper.Gⁿ[keys(particles.tracer_forcing)]
-
+    Δt = model.clock.last_stage_Δt
+    Δt = ifelse(isfinite(Δt), Δt, zero(u.grid))
     n_particles = size(particles, 1)
     worksize = n_particles
     workgroup = min(256, worksize)
@@ -13,12 +30,22 @@ function update_tendencies!(bgc, particles::GiantKelp, model)
     ####
     update_tendencies_kernel! = _update_tendencies!(device(model.architecture), workgroup, worksize)
 
-    update_tendencies_kernel!(particles, Gᵘ, Gᵛ, Gʷ, tracer_tendencies, model.grid, model.tracers, values(particles.tracer_forcing)) 
+    set!(particles.drag.u, 0)
+    set!(particles.drag.v, 0)
+    set!(particles.drag.w, 0)
 
-    synchronize(device(architecture(model)))
+    update_tendencies_kernel!(particles, particles.drag..., tracer_tendencies, model.grid, model.tracers, values(particles.tracer_forcing), model.clock.time) 
+
+#    Gᵘ .= particles.drag.u
+#    Gᵛ .= particles.drag.v
+#    Gʷ .= particles.drag.w
+    u .+= particles.drag.u * Δt
+    v .+= particles.drag.v * Δt
+    w .+= particles.drag.w * Δt
+    return nothing
 end
 
-@kernel function _update_tendencies!(particles::GiantKelp{<:UtterDennySpeed}, Gᵘ, Gᵛ, Gʷ, tracer_tendencies, grid, tracers, tracer_forcings)
+@kernel function _update_tendencies!(particles::GiantKelp{<:UtterDennySpeed}, Gᵘ, Gᵛ, Gʷ, tracer_tendencies, grid, tracers, tracer_forcings, t)
     p = @index(Global)
 
     sf = particles.scalefactor[p]
@@ -38,16 +65,19 @@ end
     k1₂ = min(k₁, k₂)
     k2₂ = max(k₁, k₂)
 
-    vol1 = total_volume(grid, i₁, j₁, Val(k1₁), Val(k2₁))
-    vol2 = total_volume(grid, i₂, j₂, Val(k1₂), Val(k2₂))
+    vol1 = total_volume(grid, i₁, j₁, k1₁, k2₁)
+    vol2 = total_volume(grid, i₂, j₂, k1₂, k2₂)
 
     # first node
     for k in k1₁:k2₁
         scaling = sf / vol1 /  particles.kinematics.water_density
 
-        @inbounds atomic_add!(Gᵘ, i₁, j₁, k, - particles.drag_forces.x[p, 2] * scaling)
-        @inbounds atomic_add!(Gᵛ, i₁, j₁, k, - particles.drag_forces.y[p, 2] * scaling)
+        @inbounds atomic_add!(Gᵘ, i₁, j₁, k, - particles.drag_forces.x[p, 2] * scaling/2)
+        @inbounds atomic_add!(Gᵘ, i₁+1, j₁, k, - particles.drag_forces.x[p, 2] * scaling/2)
+        @inbounds atomic_add!(Gᵛ, i₁, j₁, k, - particles.drag_forces.y[p, 2] * scaling/2)
+        @inbounds atomic_add!(Gᵛ, i₁, j₁+1, k, - particles.drag_forces.y[p, 2] * scaling/2)
         @inbounds atomic_add!(Gʷ, i₁, j₁, k, - particles.drag_forces.z[p, 2] * scaling)
+        @inbounds atomic_add!(Gʷ, i₁, j₁, k+1, - particles.drag_forces.z[p, 2] * scaling/2)
 
         for (tracer_idx, forcing) in enumerate(tracer_forcings)
             tracer_tendency = @inbounds tracer_tendencies[tracer_idx]
@@ -61,9 +91,12 @@ end
     for k in k1₂:k2₂
         scaling = sf / vol2 /  particles.kinematics.water_density
 
-        @inbounds atomic_add!(Gᵘ, i₂, j₂, k, - particles.drag_forces.x[p, 3] * scaling)
-        @inbounds atomic_add!(Gᵛ, i₂, j₂, k, - particles.drag_forces.y[p, 3] * scaling)
+        @inbounds atomic_add!(Gᵘ, i₂, j₂, k, - particles.drag_forces.x[p, 3] * scaling/2)
+        @inbounds atomic_add!(Gᵘ, i₂+1, j₂, k, - particles.drag_forces.x[p, 3] * scaling/2)
+        @inbounds atomic_add!(Gᵛ, i₂, j₂, k, - particles.drag_forces.y[p, 3] * scaling/2)
+        @inbounds atomic_add!(Gᵛ, i₂, j₂+1, k, - particles.drag_forces.y[p, 3] * scaling/2)
         @inbounds atomic_add!(Gʷ, i₂, j₂, k, - particles.drag_forces.z[p, 3] * scaling)
+        @inbounds atomic_add!(Gʷ, i₂, j₂, k+1, - particles.drag_forces.z[p, 3] * scaling/2)
 
         for (tracer_idx, forcing) in enumerate(tracer_forcings)
             tracer_tendency = @inbounds tracer_tendencies[tracer_idx]
@@ -112,7 +145,7 @@ end
     k1 = min(kᵢ, kᵢ₋₁)
     k2 = max(kᵢ, kᵢ₋₁)
 
-    vol = total_volume(grid, iᵢ, jᵢ, Val(k1), Val(k2))
+    vol = total_volume(grid, iᵢ, jᵢ, k1, k2)
 
     for k in k1:k2
         scaling = sf / vol /  particles.kinematics.water_density

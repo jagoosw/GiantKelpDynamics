@@ -20,8 +20,10 @@ holdfast_y = [4.]
 
 kelp = GiantKelp(; grid,
                    holdfast_x, holdfast_y,
-                   number_nodes = 8,
-                   kinematics = UtterDenny())
+                   number_nodes = 2,
+	           segment_unstretched_length = 8,
+                   kinematics = UtterDennySpeed(; turn_on_timescale = 0.0),
+		   timestepper = GiantKelpDynamics.Newmarkβ())
 
 @inline sponge(x, y, z) = ifelse(x < 10, 1, 0)
 
@@ -38,8 +40,8 @@ model = NonhydrostaticModel(; grid,
 
 # Set the initial positions of the plant nodes (relaxed floating to the surface), and the set an initial water velocity
 
-set!(kelp, positions = (x = [0, 0, 0, 0, 3, 6, 9, 12, 15] .+ 20, y = ones(8) * 4, z = [-8, -5, -2, 0, 0, 0, 0, 0]))
-
+#set!(kelp, positions = (x = [0, 0, 0, 0, 3, 6, 9, 12, 15] .+ 20, y = ones(8) * 4, z = [-8, -5, -2, 0, 0, 0, 0, 0]))
+set!(kelp, positions = (x = [20, 20, 28], y = [4, 4, 4], z = [-8, 0, 0]))
 set!(model, u = 0.1)
 
 # Setup the simulaiton to save the flow and kelp positions
@@ -50,7 +52,7 @@ prog(sim) = @info "Completed $(prettytime(time(sim))) in $(sim.model.clock.itera
 
 simulation.callbacks[:progress] = Callback(prog, IterationInterval(100))
 
-wizard = TimeStepWizard(cfl = 0.5)
+wizard = TimeStepWizard(cfl = 0.5, max_Δt=1)
 simulation.callbacks[:timestep] = Callback(wizard, IterationInterval(10))
 
 simulation.output_writers[:flow] = JLD2Writer(model, model.velocities, overwrite_existing = true, filename = "single_flow.jld2", schedule = TimeInterval(10))

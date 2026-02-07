@@ -1,6 +1,5 @@
 # Speed
 function update_tendencies!(bgc, particles::GiantKelp, model)
-
     Δt = model.clock.last_stage_Δt
     Δt = ifelse(isfinite(Δt), Δt, zero(model.grid))
     # TODO: move this into the default logic
@@ -13,7 +12,6 @@ function update_tendencies!(bgc, particles::GiantKelp, model)
     end
 
     particles.custom_dynamics(particles, model, bgc, Δt)
-
 
     Gᵘ, Gᵛ, Gʷ = @inbounds model.timestepper.Gⁿ[(:u, :v, :w)]
     u, v, w = model.velocities

@@ -294,7 +294,7 @@ show(io::IO, particles::GiantKelp) = print(io, string(summary(particles), " \n",
 end
 
 include("update_tendencies.jl")
-
 include("utils.jl")
+include("bgc_coupling.jl")
 
 end # module GiantKelpDynamics

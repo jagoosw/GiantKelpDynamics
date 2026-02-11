@@ -8,7 +8,23 @@ using Oceananigans.Fields: FunctionField
 
 no3_itp(t) = nitrate(temp_itp(t))
 
-grid = RectilinearGrid(size = (256, 32, 32), extent = (100, 8, 8))
+nitrate_itp = SimpleInterpolation(CaliforniaBightNitrate.VALUES[:inshore].itp.knots[1], 
+                                  CaliforniaBightNitrate.VALUES[:inshore].itp.coefs; 
+                                  arch, 
+                                  closure = Walrus.Interpolations.Fixed(length(CaliforniaBightNitrate.VALUES[:inshore].itp.knots[1])))
+
+temp_itp = SimpleInterpolation(temp_itp.itp.knots[1],
+                               temp_itp.itp.coefs;
+                               arch )
+
+PAR_itp = SimpleInterpolation(PAR_itp.itp.knots[1],
+                               PAR_itp.itp.coefs;
+                               arch )
+
+
+arch = CPU()#GPU()
+
+grid = RectilinearGrid(arch; size = (100, 8, 8), extent = (100, 8, 8))
 
 holdfast_x = [20.]
 holdfast_y = [4.]
@@ -20,24 +36,18 @@ dynamics = GiantKelpDynamics.GiantKelp(; grid,
                        kinematics = UtterDennySpeed(; turn_on_timescale = 0.0),
                        timestepper = GiantKelpDynamics.Newmarkβ())
 
+set!(dynamics, positions = (x = [20, 20, 28], y = [4, 4, 4], z = [-8, 0, 0]))
+
 n_blades = 32
 
-growth = GiantKelpParticles(1, grid; n_blades, scalefactors = [0.5] .* n_blades/128)
+initial_kelp_positions(x, y, z) = (20 < x < 20+16) & (3.5 < y < 4.5)
+
+growth = GiantKelpParticles(grid; n_blades, scalefactors = [0.5] .* 128/n_blades,
+                                  tracer_values = GiantKelpGrowth.TracerValues(grid, initial_kelp_positions))
 
 @load "start_file.jld2" # As0 PARs0 lifespan0 age0 N0 C0
 
-set!(growth, x = holdfast_x, y = holdfast_y, N = N0, C = C0)
-
-for n in 1:n_blades
-    growth.fields[Symbol(:A, n)] .= As0[n]
-    growth.fields[Symbol(:PAR, n)] .= PARs0[n]
-    growth.fields[Symbol(:τ, n)] .= age0[n]
-    growth.fields[Symbol(:base_lifespan, n)] .= lifespan0[n]
-
-    if n <= 5
-        growth.fields[Symbol(:frond_depth, n)] .= depths0[n]
-    end
-end
+set!(growth, x = holdfast_x, y = holdfast_y, N = N0, C = C0, A = As0, PAR = PARs0, τ = age0, base_lifespan = lifespan0)
 
 @inline sponge(x, y, z) = ifelse(x < 10, 1, 0)
 
@@ -45,44 +55,51 @@ u = Relaxation(; rate = 1/20, target = 0.1, mask = sponge)
 v = Relaxation(; rate = 1/20, mask = sponge)
 w = Relaxation(; rate = 1/20, mask = sponge)
 
-underlying_light_model = TwoBandPhotosyntheticallyActiveRadiation(; grid, surface_PAR=(x, y, t)->PAR_itp(t))
+underlying_light_model = TwoBandPhotosyntheticallyActiveRadiation(; grid, surface_PAR=PAR_itp)
 
 light_attenuation = GiantKelpGrowth.KelpShadedLight(grid, underlying_light_model)
 
 biogeochemistry = LOBSTER(; grid, 
                             detritus = VariableRedfieldDetritus(grid), 
-                            carbonate_system = CarbonateSystem(),
                             particles = (dynamics, growth), 
                             light_attenuation, 
                             scale_negatives = true)
 
-clock = Clock(; time = one(eltype(grid)) * 730days)
+#biogeochemistry = Biogeochemistry(NothingBGC(); particles = dynamics)
 
-T = FunctionField{Center, Center, Center}((x, y, z, t)->temp_itp(t), grid; clock)
-
-@inline function restore_tracer(x, y, z, t, X, parameters)
+@inline function restore_tracer(z, t, X, parameters)
     τ = parameters.timescale
     background = parameters.background
+    temp = parameters.temp
 
-    X₀ = background(t)
+    X₀ = background(temp(t))
 
     return (X₀ - X) / τ
 end
 
+@inline function restore_temp(z, t, X, parameters)
+    τ = parameters.timescale
+    temp = parameters.temp(t)
+
+    return (temp - X) / τ
+end
+
 τ = 1Units.hours#200 / 0.2
 
-NO₃_forcing = Forcing(restore_tracer, field_dependencies = :NO₃, parameters = (; timescale = τ, background = no3_itp))
+NO₃_forcing = Forcing(restore_tracer, field_dependencies = :NO₃, parameters = (; timescale = τ, temp = temp_itp, background = nitrate_itp))
+
+T_forcing = Forcing(restore_temp, field_dependencies = :T, parameters = (; timescale = τ, temp = temp_itp))
 
 model = NonhydrostaticModel(grid; 
                             biogeochemistry,
                             advection = WENO(),
-                            forcing = (; u, v, w, NO₃ = NO₃_forcing),
-                            clock,
-                            auxiliary_fields = (; T))
+                            forcing = (; u, v, w, NO₃ = NO₃_forcing, T = T_forcing),
+                            closure = AnisotropicMinimumDissipation(),
+                            tracers = :T)
 
 model.clock.time = 7.6248e7
 
-set!(model, NO₃ = no3_itp(model.clock.time), DIC = 10000)#, P = 1)
+set!(model, NO₃ = no3_itp(model.clock.time), u = 0.1, T = temp_itp(0))#, P = 1)
 
 simulation = Simulation(model, Δt = 0.5, stop_time = 10minutes)
 

@@ -20,7 +20,6 @@ Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 [compat]
 Adapt = "4.0.4"
 CUDA = "5.4.2"
-CairoMakie = "0.12.18"
 FFTW = "1.8.1"
 KernelAbstractions = "0.9.22"
 NCDatasets = "0.14.6"

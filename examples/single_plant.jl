@@ -18,7 +18,7 @@ grid = RectilinearGrid(size = (256, 32, 32), extent = (100, 8, 8))
 holdfast_x = [20.]
 holdfast_y = [4.]
 
-kelp = GiantKelp(; grid,
+kelp = GiantKelpDynamics.GiantKelp(; grid,
                    holdfast_x, holdfast_y,
                    number_nodes = 2,
 	           segment_unstretched_length = 8,
@@ -31,7 +31,7 @@ u = Relaxation(; rate = 1/20, target = 0.1, mask = sponge)
 v = Relaxation(; rate = 1/20, mask = sponge)
 w = Relaxation(; rate = 1/20, mask = sponge)
 
-model = NonhydrostaticModel(; grid, 
+model = NonhydrostaticModel( grid; 
                               biogeochemistry = Biogeochemistry(NothingBGC(),
                                                                 particles = kelp),
                               advection = WENO(),
